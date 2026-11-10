@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.cloudflareclient.com">
+<title>WARP + Proton AWG</title>
+<style>
+__CSS__
+.topbar{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(8px + var(--safe-t)) 0 10px;margin:0 0 6px}
+.topbar .seg label{padding:12px 6px;font-size:1rem}
+.view h1{font-size:1.2rem;margin:6px 0 2px}
+.ports input:disabled+span{opacity:.4}
+.seg.four label{padding:10px 2px;font-size:.84rem}
+#w-out{min-height:230px}
+body{padding-top:0}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="seg" role="radiogroup" aria-label="Режим приложения" id="tabs">
+    <label><input type="radio" name="tab" value="warp" checked><span>WARP генератор</span></label>
+    <label><input type="radio" name="tab" value="proton"><span>Proton конвертер</span></label>
+  </div>
+</div>
+
+<main>
+<section id="view-warp" class="view">
+  <h1>WARP генератор</h1>
+  <p class="sub">Бесплатный конфиг Cloudflare WARP для AmneziaWG, WireSock, Clash и Xray. Для регистрации нужен интернет; ключи создаются на вашем устройстве.</p>
+__WARP_HTML__
+</section>
+
+<section id="view-proton" class="view hidden">
+  <h1>Proton → AWG</h1>
+  <p class="sub">Конвертер WireGuard-конфигов Proton VPN в AmneziaWG, WireSock, Clash и Xray. Работает полностью офлайн.</p>
+__PROTON_HTML__
+</section>
+</main>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+__QUIC__
+</script>
+<script>
+__X25519__
+</script>
+<script>
+"use strict";
+/* ---------- общие функции оболочки ---------- */
+function AppToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(AppToast.t); AppToast.t=setTimeout(()=>t.classList.remove('on'),2400); }
+
+// Сохранение: Android — меню «Поделиться», Windows/браузер — скачивание файла
+async function AppSave(files, title){
+  const cap = window.Capacitor;
+  if (cap && cap.isNativePlatform && cap.isNativePlatform()){
+    try {
+      const {Filesystem, Share} = cap.Plugins;
+      const uris = [];
+      for (const f of files){
+        const r = await Filesystem.writeFile({path:f.fileName, data:f.text, directory:'CACHE', encoding:'utf8'});
+        uris.push(r.uri);
+      }
+      await Share.share({title:title||'Конфиг', files:uris, dialogTitle:'Сохранить или отправить в приложение VPN'});
+    } catch(e){ if (!/cancel/i.test(String(e))) AppToast('Не удалось сохранить: ' + (e.message||e)); }
+    return;
+  }
+  files.forEach((f,i)=>setTimeout(()=>{
+    const url = URL.createObjectURL(new Blob([f.text], {type:'text/plain;charset=utf-8'}));
+    const a = document.createElement('a'); a.href=url; a.download=f.fileName; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  }, i*400));
+  AppToast(files.length>1 ? `Сохранение файлов: ${files.length}` : 'Файл сохранён');
+}
+
+/* ---------- переключатель режимов ---------- */
+(function(){
+  const views = {warp: document.getElementById('view-warp'), proton: document.getElementById('view-proton')};
+  function show(name){
+    for (const k in views) views[k].classList.toggle('hidden', k!==name);
+    document.querySelector(`#tabs input[value="${name}"]`).checked = true;
+    document.title = name==='warp' ? 'WARP генератор' : 'Proton → AWG';
+    try { localStorage.setItem('tab', name); } catch(e){}
+    window.scrollTo(0,0);
+  }
+  document.querySelectorAll('#tabs input').forEach(i=>i.addEventListener('change', ()=>show(i.value)));
+  let saved = null; try { saved = localStorage.getItem('tab'); } catch(e){}
+  show(saved==='proton' ? 'proton' : 'warp');
+})();
+</script>
+<script>
+(function(){
+__WARP_JS__
+})();
+</script>
+<script>
+(function(){
+__PROTON_JS__
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "appId": "com.local.protonawg",
+  "appName": "WARP + Proton AWG",
+  "webDir": "www",
+  "android": { "allowMixedContent": false },
+  "server": { "androidScheme": "https" },
+  "plugins": { "CapacitorHttp": { "enabled": true } }
+}
