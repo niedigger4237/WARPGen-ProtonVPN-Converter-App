@@ -1,0 +1,1586 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.cloudflareclient.com">
+<title>WARP + Proton AWG</title>
+<style>
+:root{
+  --bg:#f4f3fa; --panel:#ffffff; --ink:#1c1b29; --muted:#6b6a80; --line:#dcdaea;
+  --accent:#6d4aff; --accent-ink:#ffffff; --ok:#16a06a; --field:#f0eff8;
+  --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+  font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#16152a;--panel:#1f1e38;--ink:#ecebfa;--muted:#9a99b8;--line:#33315a;--field:#2a2950;--accent:#8a6dff}
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{padding:calc(14px + var(--safe-t)) 14px calc(24px + var(--safe-b));max-width:980px;margin:0 auto;line-height:1.45}
+h1{font-size:1.35rem;margin:4px 0 2px}
+.sub{color:var(--muted);font-size:.9rem;margin:0 0 14px}
+.grid{display:grid;gap:12px;grid-template-columns:1fr}
+@media(min-width:820px){.grid{grid-template-columns:1fr 1fr}.span2{grid-column:1/-1}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+.panel h2{font-size:1rem;margin:0 0 10px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;width:100%}
+.seg label{flex:1;text-align:center;padding:10px 6px;cursor:pointer;font-size:.92rem;background:var(--field)}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg input:checked+span{font-weight:600}
+.seg label:has(input:checked){background:var(--accent);color:var(--accent-ink)}
+.seg label:has(input:focus-visible){outline:2px solid var(--ink);outline-offset:-3px}
+button,.btn{font:inherit;border:0;border-radius:10px;padding:10px 14px;background:var(--accent);color:var(--accent-ink);cursor:pointer;font-weight:600}
+button.ghost{background:var(--field);color:var(--ink);font-weight:500}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+input[type=text],input[type=number],select,textarea{font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+textarea{font-family:Consolas,"Cascadia Mono",monospace;font-size:.8rem;resize:vertical}
+.f{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--muted);min-width:90px;flex:1}
+.f.w{flex-basis:100%}
+.chk{display:flex;gap:10px;align-items:center;padding:6px 0;font-size:.95rem}
+.chk input{width:20px;height:20px;accent-color:var(--accent)}
+.ports{display:flex;flex-wrap:wrap;gap:6px}
+.ports label{cursor:pointer}
+.ports input{position:absolute;opacity:0}
+.ports span{display:inline-block;padding:7px 11px;border:1px solid var(--line);border-radius:8px;background:var(--field);font-size:.88rem}
+.ports input:checked+span{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.ports input:focus-visible+span{outline:2px solid var(--ink)}
+.hidden{display:none!important}
+#files{font-size:.85rem;color:var(--muted);margin-top:6px;word-break:break-all}
+#out{min-height:230px}
+.hint{font-size:.8rem;color:var(--muted)}
+#toast{position:fixed;left:50%;bottom:calc(20px + var(--safe-b));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:.9rem;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw}
+#toast.on{opacity:1}
+@media(prefers-reduced-motion:reduce){#toast{transition:none}}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--ink);max-width:420px;width:92vw}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+
+.topbar{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(8px + var(--safe-t)) 0 10px;margin:0 0 6px}
+.topbar .seg label{padding:12px 6px;font-size:1rem}
+.view h1{font-size:1.2rem;margin:6px 0 2px}
+.ports input:disabled+span{opacity:.4}
+.dpi-res{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.dpi-row{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:10px;background:var(--field);font-size:.9rem;border:1px solid transparent}
+.dpi-row .dpi-state{white-space:nowrap;font-variant-numeric:tabular-nums;opacity:.8}
+.dpi-row.good{border-color:#2e9d5b}.dpi-row.part{border-color:#c79a1e}.dpi-row.bad{opacity:.6}
+.dpi-row.best{background:rgba(46,157,91,.18);font-weight:600}
+.seg.four label{padding:10px 2px;font-size:.84rem}
+#w-out{min-height:230px}
+body{padding-top:0}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="seg" role="radiogroup" aria-label="Режим приложения" id="tabs">
+    <label><input type="radio" name="tab" value="warp" checked><span>WARP</span></label>
+    <label><input type="radio" name="tab" value="proton"><span>Proton</span></label>
+    <label><input type="radio" name="tab" value="dpi"><span>ByeDPI</span></label>
+  </div>
+</div>
+
+<main>
+<section id="view-warp" class="view">
+  <h1>WARP генератор</h1>
+  <p class="sub">Бесплатный конфиг Cloudflare WARP для AmneziaWG, WireSock, Clash и Xray. Для регистрации нужен интернет; ключи создаются на вашем устройстве.</p>
+<div class="grid">
+  <section class="panel">
+    <h2>Формат</h2>
+    <div class="seg four" role="radiogroup" aria-label="Формат WARP">
+      <label><input type="radio" name="wfmt" value="awg" checked><span>AmneziaWG</span></label>
+      <label><input type="radio" name="wfmt" value="wiresock"><span>WireSock</span></label>
+      <label><input type="radio" name="wfmt" value="clash"><span>Clash</span></label>
+      <label><input type="radio" name="wfmt" value="xray"><span>Xray</span></label>
+    </div>
+    <div id="w-varBox">
+      <h2 style="margin-top:16px">Вариант маскировки (AWG 2.0)</h2>
+      <div class="seg" role="radiogroup" aria-label="Вариант">
+        <label><input type="radio" name="wvar" value="quic" checked><span>1 · QUIC</span></label>
+        <label><input type="radio" name="wvar" value="domain"><span>2 · QUIC + домен</span></label>
+        <label><input type="radio" name="wvar" value="sip"><span>3 · SIP</span></label>
+      </div>
+    </div>
+    <div id="w-domBox" class="row">
+      <label class="f w">Домен для имитации (SNI)<input type="text" id="w-domain" placeholder="пусто — случайный из списка" autocapitalize="off" spellcheck="false"></label>
+    </div>
+    <div id="w-wsBox" class="row hidden">
+      <label class="f">Ip<select id="w-wsIp"><option value="quic" selected>QUIC</option><option value="dns">DNS</option></select></label>
+      <label class="f">Ib<select id="w-wsIb"><option value="chrome">Chrome</option><option value="firefox">Firefox</option><option value="curl" selected>cURL</option></select></label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Сеть</h2>
+    <label class="f w" style="margin-bottom:8px">DNS
+      <select id="w-dns"></select>
+    </label>
+    <label class="f w" style="margin-bottom:8px">Endpoint
+      <select id="w-epMode">
+        <option value="random" selected>Случайный IP и порт</option>
+        <option value="engage">engage.cloudflareclient.com:2408</option>
+        <option value="custom">Свой…</option>
+      </select>
+    </label>
+    <input type="text" id="w-ep" class="hidden" placeholder="162.159.192.1:2408" autocapitalize="off" spellcheck="false" style="margin-bottom:8px">
+    <div class="row">
+      <label class="f">MTU<input type="number" id="w-mtu" placeholder="1280" min="576" max="1500"></label>
+      <label class="f">Keepalive, с<input type="number" id="w-ka" placeholder="25" min="1" max="999"></label>
+    </div>
+    <label class="chk"><input type="checkbox" id="w-useKa"> Добавить PersistentKeepalive</label>
+    <label class="chk"><input type="checkbox" id="w-ipv6" checked> IPv6</label>
+    <label class="chk"><input type="checkbox" id="w-noJunk"> Убрать мусорные пакеты (Jc = 0)</label>
+  </section>
+
+  <section class="panel" id="w-awg3panel">
+    <h2>AWG 3.0 / 3.1</h2>
+    <label class="chk"><input type="checkbox" id="w-awg3"> Включить параметры AWG 3.0</label>
+    <div id="w-awg3box" class="hidden">
+      <div class="row">
+        <label class="f">ContentPaddingAddition<input type="text" id="w-cpa" placeholder="27-97"></label>
+        <label class="f">MaxHandshakeAttempts<input type="text" id="w-mha" placeholder="18-26"></label>
+        <label class="f">KeepaliveTimeout<input type="text" id="w-kt" placeholder="9-16"></label>
+        <label class="f">RejectAfterTime<input type="text" id="w-rat" placeholder="171-196"></label>
+        <label class="f">RekeyAfterTime<input type="text" id="w-rkat" placeholder="116-131"></label>
+        <label class="f">RekeyTimeout<input type="text" id="w-rt" placeholder="6-9"></label>
+      </div>
+      <div class="row"><button class="ghost" id="w-rndAwg3">Случайно</button></div>
+    </div>
+    <label class="chk"><input type="checkbox" id="w-awg31"> AWG 3.1</label>
+    <div id="w-awg31box" class="hidden">
+      <label class="chk"><input type="checkbox" id="w-trailers" checked> Random trailers</label>
+      <label class="chk"><input type="checkbox" id="w-cookies" checked> Отключить cookies</label>
+    </div>
+  </section>
+
+  <section class="panel" id="w-splitPanel">
+    <h2>Раздельное туннелирование</h2>
+    <label class="chk"><input type="checkbox" id="w-nolan"> Исключить локальную сеть (LAN)</label>
+    <p class="hint" style="margin:2px 0 8px">Или направьте через WARP только выбранные сервисы:</p>
+    <div class="ports" id="w-sites"></div>
+  </section>
+
+  <section class="panel span2">
+    <h2>Результат</h2>
+    <label class="chk"><input type="checkbox" id="w-useProxy"> Получать ключи Cloudflare через прокси</label>
+    <div id="w-proxyBox" class="hidden">
+      <div class="seg" role="radiogroup" aria-label="Тип прокси" style="margin-bottom:8px">
+        <label><input type="radio" name="wpx" value="custom" checked><span>Свой прокси</span></label>
+        <label><input type="radio" name="wpx" value="dpi"><span>ByeDPI</span></label>
+      </div>
+      <input type="text" id="w-proxy" placeholder="socks5://127.0.0.1:1080 или http://user:pass@host:3128" autocapitalize="off" spellcheck="false" style="margin-bottom:8px">
+      <p class="hint hidden" id="w-dpiHint" style="margin:0 0 8px"></p>
+    </div>
+    <div class="row">
+      <button id="w-gen">Сгенерировать</button>
+      <button id="w-newacc" class="ghost">Новый аккаунт</button>
+      <span class="hint" id="w-acc">Аккаунт ещё не создан</span>
+    </div>
+    <textarea id="w-out" spellcheck="false" readonly placeholder="Нажмите «Сгенерировать» — приложение зарегистрирует бесплатный аккаунт WARP и соберёт конфиг"></textarea>
+    <div class="row">
+      <button id="w-save" disabled>Сохранить</button>
+      <button id="w-copy" class="ghost" disabled>Скопировать</button>
+    </div>
+    <p class="hint" id="w-hint"></p>
+  </section>
+</div>
+
+</section>
+
+<section id="view-proton" class="view hidden">
+  <h1>Proton → AWG</h1>
+  <p class="sub">Конвертер WireGuard-конфигов Proton VPN в AmneziaWG, WireSock, Clash и Xray. Работает полностью офлайн.</p>
+<div class="grid">
+  <section class="panel">
+    <h2>1. Конфиги Proton</h2>
+    <input type="file" id="file" multiple class="hidden">
+    <div class="row">
+      <button id="pick">Выбрать .conf</button>
+      <button id="paste" class="ghost">Вставить текст</button>
+    </div>
+    <div id="files">Файлы не выбраны</div>
+    <h2 style="margin-top:16px">Формат</h2>
+    <div class="seg four" role="radiogroup" aria-label="Формат">
+      <label><input type="radio" name="fmt" value="awg" checked><span>AmneziaWG</span></label>
+      <label><input type="radio" name="fmt" value="wiresock"><span>WireSock</span></label>
+      <label><input type="radio" name="fmt" value="clash"><span>Clash</span></label>
+      <label><input type="radio" name="fmt" value="xray"><span>Xray</span></label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Маскировка (AWG 1.0)</h2>
+    <div class="seg" role="radiogroup" aria-label="Параметры мусора">
+      <label><input type="radio" name="junk" value="1" checked><span>Jc 3 · 1–3</span></label>
+      <label><input type="radio" name="junk" value="2"><span>Jc 30 · 10–30</span></label>
+      <label><input type="radio" name="junk" value="3"><span>Свои</span></label>
+    </div>
+    <div class="row">
+      <label class="f">Jc<input type="number" id="jc" placeholder="128" min="0" max="999"></label>
+      <label class="f">Jmin<input type="number" id="jmin" placeholder="1279" min="0" max="9999"></label>
+      <label class="f">Jmax<input type="number" id="jmax" placeholder="1280" min="0" max="9999"></label>
+    </div>
+    <div class="row"><button class="ghost" id="rndJunk">Случайно</button></div>
+    <label class="chk"><input type="checkbox" id="noJunk"> Убрать мусорные пакеты (Jc = 0)</label>
+  </section>
+
+  <section class="panel" id="p-awg2">
+    <h2>Имитация протокола (AWG 2.0, I1–I5)</h2>
+    <div class="row">
+      <label class="f w">I1<textarea id="i1" rows="2" spellcheck="false" placeholder="&lt;b 0xc600…&gt;"></textarea></label>
+      <div id="i2-5" class="row" style="margin:0;width:100%"><label class="f w">I2<textarea id="i2" rows="1" spellcheck="false"></textarea></label>
+      <label class="f w">I3<textarea id="i3" rows="1" spellcheck="false"></textarea></label>
+      <label class="f w">I4<textarea id="i4" rows="1" spellcheck="false"></textarea></label>
+      <label class="f w">I5<textarea id="i5" rows="1" spellcheck="false"></textarea></label></div>
+    </div>
+    <div class="row">
+      <button class="ghost" id="rndI">Случайно</button>
+      <button id="genI">Из домена (QUIC)</button>
+    </div>
+    <p class="hint">Пустой I1 заменяется встроенным QUIC-пакетом.</p>
+  </section>
+
+  <section class="panel hidden" id="p-ws">
+    <h2>Имитация протокола (WireSock)</h2>
+    <div class="row">
+      <label class="f w">Id (домен)<input type="text" id="wsId" placeholder="apteka.ru" autocapitalize="off" spellcheck="false"></label>
+      <label class="f">Ip<select id="wsIp"><option value="quic" selected>QUIC</option><option value="dns">DNS</option></select></label>
+      <label class="f">Ib<select id="wsIb"><option value="chrome">Chrome</option><option value="firefox">Firefox</option><option value="curl" selected>cURL</option></select></label>
+    </div>
+    <div class="row"><button class="ghost" id="rndWs">Случайный домен</button></div>
+  </section>
+
+  <section class="panel" id="p-awg3">
+    <h2>AWG 3.0 / 3.1</h2>
+    <label class="chk"><input type="checkbox" id="awg3"> Включить параметры AWG 3.0</label>
+    <div id="awg3box" class="hidden">
+      <div class="row">
+        <label class="f">ContentPaddingAddition<input type="text" id="cpa" placeholder="27-97"></label>
+        <label class="f">MaxHandshakeAttempts<input type="text" id="mha" placeholder="18-26"></label>
+        <label class="f">KeepaliveTimeout<input type="text" id="kt" placeholder="9-16"></label>
+        <label class="f">RejectAfterTime<input type="text" id="rat" placeholder="171-196"></label>
+        <label class="f">RekeyAfterTime<input type="text" id="rkat" placeholder="116-131"></label>
+        <label class="f">RekeyTimeout<input type="text" id="rt" placeholder="6-9"></label>
+      </div>
+      <div class="row"><button class="ghost" id="rndAwg3">Случайно</button></div>
+    </div>
+    <label class="chk"><input type="checkbox" id="awg31"> Отключить cookies (AWG 3.1)</label>
+  </section>
+
+  <section class="panel">
+    <h2>Сеть</h2>
+    <div class="row">
+      <label class="f">MTU<input type="number" id="mtu" placeholder="1420" min="576" max="1500"></label>
+      <label class="f">Keepalive, с<input type="number" id="ka" placeholder="25" min="1" max="999"></label>
+    </div>
+    <label class="chk"><input type="checkbox" id="useKa"> Добавить PersistentKeepalive</label>
+    <label class="chk" id="nolanRow"><input type="checkbox" id="nolan"> Исключить локальную сеть (LAN)</label>
+    <div style="margin:8px 0 6px;font-size:.9rem">Порт Endpoint</div>
+    <div class="ports" id="ports"></div>
+  </section>
+
+  <section class="panel span2">
+    <h2>Результат</h2>
+    <textarea id="out" spellcheck="false" readonly placeholder="Выберите .conf файлы Proton — результат появится здесь"></textarea>
+    <div class="row">
+      <button id="save" disabled>Сохранить</button>
+      <button id="copy" class="ghost" disabled>Скопировать</button>
+    </div>
+    <p class="hint" id="saveHint"></p>
+  </section>
+</div>
+
+<dialog id="dlgDomain">
+  <form method="dialog" style="margin:0">
+    <h2 style="margin-top:0;font-size:1rem">Домен для I1</h2>
+    <input type="text" id="domain" placeholder="example.com" autocapitalize="off" spellcheck="false">
+    <div class="row" style="justify-content:flex-end">
+      <button value="cancel" class="ghost">Отмена</button>
+      <button value="ok" id="domainOk">Сгенерировать</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgPaste">
+  <form method="dialog" style="margin:0">
+    <h2 style="margin-top:0;font-size:1rem">Текст конфига Proton</h2>
+    <textarea id="pasteText" rows="10" spellcheck="false" placeholder="[Interface]&#10;PrivateKey = …"></textarea>
+    <div class="row" style="justify-content:flex-end">
+      <button value="cancel" class="ghost">Отмена</button>
+      <button value="ok" id="pasteOk">Добавить</button>
+    </div>
+  </form>
+</dialog>
+
+
+</section>
+
+<section id="view-dpi" class="view hidden">
+  <h1>Обход блокировок (ByeDPI)</h1>
+  <p class="sub">Локальный SOCKS5-прокси, который изменяет первые пакеты соединения, чтобы обойти DPI-фильтрацию. Подберите стратегию автоматически и используйте её для получения WARP-ключей или в других программах (socks5://127.0.0.1:порт).</p>
+<div class="grid">
+  <section class="panel span2">
+    <h2>Встроенный ByeDPI</h2>
+    <p class="hint" id="d-status" style="margin:0 0 10px">Проверка…</p>
+    <div class="row">
+      <label class="f">Порт SOCKS5<input type="number" id="d-port" placeholder="1080" min="1024" max="65535"></label>
+    </div>
+    <div class="row">
+      <button id="d-start">Запустить</button>
+      <button id="d-stop" class="ghost" disabled>Остановить</button>
+    </div>
+    <p class="hint" id="d-addr"></p>
+  </section>
+
+  <section class="panel span2">
+    <h2>Стратегия</h2>
+    <label class="f w">Готовые стратегии
+      <select id="d-strat"></select>
+    </label>
+    <label class="f w" style="margin-top:8px">Параметры командной строки (можно править)
+      <textarea id="d-args" rows="2" spellcheck="false" placeholder="--split 1+s --disorder 3+s"></textarea>
+    </label>
+    <p class="hint">Если параметры отредактированы вручную, они используются вместо выбранной стратегии. Если стратегия не помогает — воспользуйтесь автоподбором ниже.</p>
+  </section>
+
+  <section class="panel span2">
+    <h2>Автоподбор стратегии</h2>
+    <p class="hint" style="margin:0 0 8px">Что проверять (стратегия засчитывается, если сайт отвечает по HTTPS):</p>
+    <div class="ports" id="d-targets"></div>
+    <div class="row" style="margin-top:10px">
+      <label class="f">Таймаут на сайт
+        <select id="d-timeout"><option value="4000">4 с</option><option value="6000" selected>6 с</option><option value="10000">10 с</option></select>
+      </label>
+    </div>
+    <div class="row">
+      <button id="d-search">Подобрать</button>
+      <button id="d-abort" class="ghost hidden">Остановить подбор</button>
+    </div>
+    <p class="hint" id="d-progress"></p>
+    <div id="d-res" class="dpi-res"></div>
+  </section>
+</div>
+
+</section>
+</main>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const c = window.crypto.subtle;
+let quicHmacKey = null;
+
+/**
+ * @param {string|ArrayBuffer|null} data
+ */
+function quicStr8(data) {
+    if (!data) return new ArrayBuffer(1);
+    const input = (typeof data === 'string') ? new TextEncoder().encode(data) : new Uint8Array(data);
+    const result = new Uint8Array(input.byteLength + 1);
+    const view = new DataView(result.buffer);
+    view.setUint8(0, input.byteLength);
+    result.set(input, 1);
+    return result.buffer;
+}
+/**
+ * @param {string|ArrayBuffer|null} data
+ */
+function quicStr16(data) {
+    if (!data) return new ArrayBuffer(2);
+    const input = (typeof data === 'string') ? new TextEncoder().encode(data) : new Uint8Array(data);
+    const result = new Uint8Array(input.byteLength + 2);
+    const view = new DataView(result.buffer);
+    view.setUint16(0, input.byteLength, false);
+    result.set(input, 2);
+    return result.buffer;
+}
+
+/**
+ * @param {number} x
+ */
+function quicVarint(x) {
+    let result;
+    if (x < 0x40) {
+        return new Uint8Array([x]).buffer;
+    } else if (x < 0x4000) {
+        result = new Uint8Array(2);
+        new DataView(result.buffer).setUint16(0, x, false);
+        result[0] = result[0] | 0x40;
+    } else if (x < 0x40000000) {
+        result = new Uint8Array(4);
+        new DataView(result.buffer).setUint32(0, x, false);
+        result[0] = result[0] | 0x80;
+    } else {
+        result = new Uint8Array(8);
+        new DataView(result.buffer).setBigUint64(0, BigInt(x), false);
+        result[0] = result[0] | 0xC0;
+    }
+    return result.buffer;
+}
+/**
+ * @param {number} x
+ */
+function quicVarintLength(x) {
+    if (x < 0x40) {
+        return 1;
+    } else if (x < 0x4000) {
+        return 2;
+    } else if (x < 0x40000000) {
+        return 4;
+    } else {
+        return 8;
+    }
+}
+
+/**
+ * @param {ArrayBuffer|Uint8Array} buffer 
+ */
+function quicU8a(buffer) {
+    if (buffer instanceof Uint8Array) {
+        return buffer;
+    }
+    return new Uint8Array(buffer);
+}
+
+/**
+ * @param {ArrayBuffer|Uint8Array} buffer 
+ */
+function quicToHex(buffer) {
+    const arr = quicU8a(buffer);
+    if (arr.toHex) {
+        return arr.toHex();
+    } else {
+        return [...arr].map(x => x.toString(16).padStart(2, '0')).join('');
+    }
+}
+
+/**
+ * @param {(ArrayBuffer | Uint8Array)[]} buffers 
+ * @param {number} allocateBefore
+ * @param {number} allocateAfter
+ */
+function quicConcatBuffers(buffers, allocateBefore = 0, allocateAfter = 0) {
+    const buffersU8a = buffers.map((buffer) => quicU8a(buffer));
+    const totalLength = buffersU8a.reduce(
+        (a, buffer) => a + buffer.byteLength,
+        allocateBefore + allocateAfter
+    );
+    const result = new Uint8Array(totalLength);
+    let offset = allocateBefore;
+    for (const buffer of buffersU8a) {
+        result.set(buffer, offset);
+        offset += buffer.byteLength;
+    }
+    return result.buffer;
+}
+
+/**
+ * @param {ArrayBuffer|Uint8Array} dst
+ * @param {ArrayBuffer|Uint8Array} src
+ * @param {number} offset
+ */
+function quicCopyBuffer(dst, src, offset = 0) {
+    quicU8a(dst).set(quicU8a(src), offset);
+    return src.byteLength;
+}
+/**
+ * @param {ArrayBuffer|Uint8Array} dst
+ * @param {ArrayBuffer|Uint8Array} src
+ * @param {number} dstOffset
+ * @param {number} srcOffset
+ * @param {number} length
+ */
+function quicXorBuffer(dst, src, dstOffset, srcOffset, length) {
+    const dstU = quicU8a(dst);
+    const srcU = quicU8a(src);
+    for (let i = 0; i < length; i++) {
+        dstU[dstOffset + i] ^= srcU[srcOffset + i];
+    }
+}
+
+/**
+ * @param {CryptoKey|ArrayBuffer} key
+ * @param {ArrayBuffer} buffer
+ */
+async function quicHmac(key, buffer) {
+    const cryptoKey = (key instanceof CryptoKey) ? key : await c.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    return c.sign('HMAC', cryptoKey, buffer);
+}
+
+async function quicInitHmacKey() {
+    const quicSalt = new Uint8Array([
+        0x38, 0x76, 0x2c, 0xf7, 0xf5, 0x59, 0x34, 0xb3, 0x4d, 0x17,
+        0x9a, 0xe6, 0xa4, 0xc8, 0x0c, 0xad, 0xcc, 0xbb, 0x7f, 0x0a,
+    ]);
+    quicHmacKey = await c.importKey('raw', quicSalt, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+}
+/**
+ * @param {CryptoKey|ArrayBuffer} key
+ * @param {number} length
+ * @param {string} label
+ * @param {string} context
+ */
+async function quicDeriveSecret(key, length, label, context = '') {
+    const dataBuffer = quicConcatBuffers([
+        quicStr8('tls13 ' + label),
+        quicStr8(context),
+        new Uint8Array([0x01]),
+    ], 2);
+    const view = new DataView(dataBuffer);
+    // note: length here is not buffer length, but external one
+    view.setUint16(0, length, false);
+    const hmac = await quicHmac(key, dataBuffer);
+    return hmac.slice(0, length);
+}
+/**
+ * @param {CryptoKey|ArrayBuffer} key
+ * @param {ArrayBuffer} payload
+ * @param {ArrayBuffer} iv
+ * @param {ArrayBuffer} aad
+ */
+async function quicEncryptPayload(key, payload, iv, aad) {
+    const cryptoKey = (key instanceof CryptoKey) ? key : await c.importKey('raw', key, { name: 'AES-GCM', length: 128 }, false, ['encrypt']);
+    return c.encrypt({ name: 'AES-GCM', iv: iv, additionalData: aad, tagLength: 128 }, cryptoKey, payload);
+}
+/**
+ * @param {CryptoKey|ArrayBuffer} key
+ * @param {ArrayBuffer} sample
+ */
+async function quicDeriveHpMask(key, sample) {
+    // ECB is not implemented in Subtle, so we just use single block with zero IV
+    const cryptoKey = (key instanceof CryptoKey) ? key : await c.importKey('raw', key, { name: 'AES-CBC', length: 128 }, false, ['encrypt']);
+    return c.encrypt({ name: 'AES-CBC', iv: new ArrayBuffer(16) }, cryptoKey, sample);
+}
+/**
+ * @param {number} dcidLength
+ * @param {number} scidLength
+ * @param {number} tokenLength
+ * @param {number} pknLength
+ * @param {number} payload
+ * @param {number} padto
+ */
+function quicMeasureLengths(dcidLength, scidLength, tokenLength, pknLength, payloadLength, padto = 0) {
+    const baseHeaderLength = 8 + dcidLength + scidLength + tokenLength + pknLength;
+    const tagLength = 16;
+    let paddingLength = 0;
+
+    const getLengthByteSize = () => quicVarintLength(pknLength + payloadLength + paddingLength + tagLength);
+    const getOverallLength = () => baseHeaderLength + getLengthByteSize() + payloadLength + paddingLength + tagLength;
+
+    let overallLength = getOverallLength();
+    if (overallLength < padto) {
+        paddingLength = padto - overallLength;
+        // Adjust padding down if it's too big due to length byte got bigger
+        while (paddingLength && (getOverallLength() > padto)) {
+            paddingLength--;
+        }
+        // But it can accidentaly underflow, just nudge 1 step back
+        if (getOverallLength() < padto) {
+            paddingLength++;
+        }
+        overallLength = getOverallLength();
+    }
+    // extra safety (tail starting from pkn must be at least 20 bytes hor hp key derivation)
+    if (pknLength + payloadLength + paddingLength + tagLength < 20) {
+        paddingLength = 20 - pknLength - payloadLength - tagLength;
+        overallLength = getOverallLength();
+    }
+    const headerLength = baseHeaderLength + getLengthByteSize();
+
+    return {
+        'total': overallLength,
+        'header': headerLength,
+        'padding': paddingLength,
+    };
+}
+/**
+ * @param {ArrayBuffer} dcid
+ * @param {ArrayBuffer} scid
+ * @param {ArrayBuffer} token
+ * @param {ArrayBuffer} pkn
+ * @param {ArrayBuffer} payload
+ * @param {number} padto
+ */
+async function quicInitial(dcid, scid, token, pkn, payload, padto) {
+    const lengths = quicMeasureLengths(dcid.byteLength, scid.byteLength, token.byteLength, pkn.byteLength, payload.byteLength, padto);
+    // Create header buffer
+    const header = quicConcatBuffers([
+        new Uint8Array([0xC0 | (pkn.byteLength - 1), 0, 0, 0, 1]),
+        quicStr8(dcid),
+        quicStr8(scid),
+        quicStr8(token),
+        quicVarint(pkn.byteLength + payload.byteLength + lengths.padding + 16),
+        pkn,
+    ]);
+    // Derive keys
+    if (!quicHmacKey) await quicInitHmacKey();
+    const initSecret = await quicHmac(quicHmacKey, dcid);
+    const clientSecret = await quicDeriveSecret(initSecret, 32, 'client in');
+    const quicKey = await quicDeriveSecret(clientSecret, 16, 'quic key');
+    const quicIv = await quicDeriveSecret(clientSecret, 12, 'quic iv');
+    const quicHp = await quicDeriveSecret(clientSecret, 16, 'quic hp');
+    // Xor nonce with PKN
+    quicXorBuffer(quicIv, pkn, 12 - pkn.byteLength, 0, pkn.byteLength);
+    // Create padded payload buffer and encrypt it
+    const paddedPayload = quicConcatBuffers([payload], 0, lengths.padding);
+    const encryptedPayload = await quicEncryptPayload(quicKey, paddedPayload, quicIv, header);
+    // Header Prorection
+    const mask = new Uint8Array(await quicDeriveHpMask(quicHp, encryptedPayload.slice(4 - pkn.byteLength, 20 - pkn.byteLength)));
+    mask[0] &= 0x0f;
+    quicXorBuffer(header, mask, 0, 0, 1);
+    quicXorBuffer(header, mask, header.byteLength - pkn.byteLength, 1, pkn.byteLength);
+    // Generate resulting buffer
+    return quicConcatBuffers([header, encryptedPayload]);
+}
+/**
+ * @param {ArrayBuffer} data
+ * @param {number} offset
+ */
+function quicCryptoFrame(data, offset = 0) {
+    return quicConcatBuffers([
+        new Uint8Array([0x06]),
+        quicVarint(offset),
+        quicVarint(data.byteLength),
+        data,
+    ]);
+}
+/**
+ * @param {number} code
+ * @param {ArrayBuffer} content
+ */
+function quicTlsExt(code, content) {
+    const length = content.byteLength;
+    const result = quicConcatBuffers([content], 4);
+    const view = new DataView(result);
+    view.setUint16(0, code, false);
+    view.setUint16(2, length, false);
+    return result;
+}
+/**
+ * @param {string} sni
+ */
+function quicTlsExtSni(sni) {
+    const sniBuffer = quicStr16(sni);
+    const extBuffer = quicConcatBuffers([sniBuffer], 3);
+    const view = new DataView(extBuffer);
+    view.setUint16(0, sniBuffer.byteLength + 1, false);
+    view.setUint8(2, 0);
+    return quicTlsExt(0, extBuffer);
+}
+/**
+ * @param {string} sni
+ * @param {ArrayBuffer?} predefinedRandom
+ */
+function quicTlsClientHelloSniOnly(sni, predefinedRandom = null) {
+    const randomBytes = new Uint8Array(predefinedRandom ?? new ArrayBuffer(32));
+    if (!predefinedRandom) window.crypto.getRandomValues(randomBytes);
+    const payload = quicConcatBuffers([
+        new Uint8Array([0x03, 0x03]),
+        randomBytes,
+        new Uint8Array([0, 0, 0, 0]),
+        quicStr16(quicTlsExtSni(sni)),
+    ], 4);
+    const view = new DataView(payload);
+    view.setUint32(0, payload.byteLength - 4, false);
+    view.setUint8(0, 0x01);
+    return payload;
+}
+
+function zebra(buffer, parts, includeFirst = true) {
+    let include = includeFirst;
+    let offset = 0;
+    let result = '';
+    for (let part of parts) {
+        if (include) {
+            result += `<b 0x${quicToHex(buffer.slice(offset, offset + part))}>`;
+        } else {
+            result += `<r ${part}>`;
+        }
+        offset += part;
+        include = !include;
+    }
+    return result;
+}
+
+window.generateI1FromDomain = async function(domain) {
+    try {
+        const dcid = new Uint8Array(1);
+        window.crypto.getRandomValues(dcid);
+        const scid = new Uint8Array(0);
+        const token = new Uint8Array(0);
+        const pkn = new Uint8Array([0]);
+        const clientHello = quicTlsClientHelloSniOnly(domain);
+        const payload = quicCryptoFrame(clientHello);
+        const packet = await quicInitial(dcid, scid, token, pkn, payload, 0);
+//        return zebra(packet, [31, 22, packet.byteLength - 69, 16]);
+		  return `<b 0x${quicToHex(packet)}>`
+    } catch (error) {
+        console.error('Ошибка генерации I1:', error);
+        return null;
+    }
+};
+</script>
+<script>
+/* Чистая реализация X25519 (RFC 7748) на BigInt — не зависит от WebCrypto */
+const X25519 = (() => {
+  const P = (1n << 255n) - 19n;
+  const A24 = 121665n;
+  const mod = a => { const r = a % P; return r >= 0n ? r : r + P; };
+  const pow = (b, e) => { let r = 1n; b = mod(b); while (e > 0n) { if (e & 1n) r = mod(r * b); b = mod(b * b); e >>= 1n; } return r; };
+  const inv = a => pow(a, P - 2n);
+  const decodeLE = bytes => { let n = 0n; for (let i = bytes.length - 1; i >= 0; i--) n = (n << 8n) | BigInt(bytes[i]); return n; };
+  const encodeLE = n => { const o = new Uint8Array(32); for (let i = 0; i < 32; i++) { o[i] = Number(n & 255n); n >>= 8n; } return o; };
+  function scalarMult(k, u) {
+    const kk = Uint8Array.from(k); kk[0] &= 248; kk[31] &= 127; kk[31] |= 64;
+    const uu = Uint8Array.from(u); uu[31] &= 127;
+    const x1 = decodeLE(uu), kn = decodeLE(kk);
+    let x2 = 1n, z2 = 0n, x3 = x1, z3 = 1n, swap = 0n;
+    for (let t = 254n; t >= 0n; t--) {
+      const kt = (kn >> t) & 1n;
+      swap ^= kt;
+      if (swap) { [x2, x3] = [x3, x2]; [z2, z3] = [z3, z2]; }
+      swap = kt;
+      const A = mod(x2 + z2), AA = mod(A * A), B = mod(x2 - z2), BB = mod(B * B), E = mod(AA - BB);
+      const C = mod(x3 + z3), D = mod(x3 - z3), DA = mod(D * A), CB = mod(C * B);
+      x3 = mod((DA + CB) ** 2n); z3 = mod(x1 * mod((DA - CB) ** 2n));
+      x2 = mod(AA * BB); z2 = mod(E * (AA + A24 * E));
+    }
+    if (swap) { [x2, x3] = [x3, x2]; [z2, z3] = [z3, z2]; }
+    return encodeLE(mod(x2 * inv(z2)));
+  }
+  const BASE = (() => { const b = new Uint8Array(32); b[0] = 9; return b; })();
+  const b64 = u8 => btoa(String.fromCharCode(...u8));
+  function generateKeyPair() {
+    const priv = new Uint8Array(32); crypto.getRandomValues(priv);
+    priv[0] &= 248; priv[31] &= 127; priv[31] |= 64;
+    return { priv: b64(priv), pub: b64(scalarMult(priv, BASE)) };
+  }
+  return { scalarMult, generateKeyPair, BASE };
+})();
+
+</script>
+<script>
+"use strict";
+/* ---------- общие функции оболочки ---------- */
+function AppToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(AppToast.t); AppToast.t=setTimeout(()=>t.classList.remove('on'),2400); }
+
+// Сохранение на устройство: Windows — диалог сохранения, Android — папка «Документы/WarpProtonAWG», браузер — скачивание
+async function AppSave(files, title){
+  if (window.warpBridge && window.warpBridge.saveFiles){
+    try {
+      const r = await window.warpBridge.saveFiles(files.map(f=>({fileName:f.fileName, text:f.text})));
+      if (r && !r.canceled) AppToast(r.count>1 ? `Сохранено файлов: ${r.count}` : 'Файл сохранён');
+    } catch(e){ AppToast('Не удалось сохранить: ' + (e.message||e)); }
+    return;
+  }
+  const cap = window.Capacitor;
+  if (cap && cap.isNativePlatform && cap.isNativePlatform()){
+    const {Filesystem, Share} = cap.Plugins;
+    try {
+      try { await Filesystem.requestPermissions(); } catch(e){}
+      for (const f of files)
+        await Filesystem.writeFile({path:'WarpProtonAWG/'+f.fileName, data:f.text, directory:'DOCUMENTS', encoding:'utf8', recursive:true});
+      AppToast(files.length>1 ? `Сохранено в Документы/WarpProtonAWG: ${files.length} файлов` : `Сохранено: Документы/WarpProtonAWG/${files[0].fileName}`);
+    } catch(e){
+      // запасной вариант, если запись в «Документы» запрещена системой
+      try {
+        const uris = [];
+        for (const f of files){ const r = await Filesystem.writeFile({path:f.fileName, data:f.text, directory:'CACHE', encoding:'utf8'}); uris.push(r.uri); }
+        await Share.share({title:title||'Конфиг', files:uris, dialogTitle:'Сохранить файл'});
+      } catch(e2){ if (!/cancel/i.test(String(e2))) AppToast('Не удалось сохранить: ' + (e2.message||e2)); }
+    }
+    return;
+  }
+  files.forEach((f,i)=>setTimeout(()=>{
+    const url = URL.createObjectURL(new Blob([f.text], {type:'text/plain;charset=utf-8'}));
+    const a = document.createElement('a'); a.href=url; a.download=f.fileName; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  }, i*400));
+  AppToast(files.length>1 ? `Сохранение файлов: ${files.length}` : 'Файл сохранён');
+}
+
+/* ---------- переключатель режимов ---------- */
+(function(){
+  const views = {warp: document.getElementById('view-warp'), proton: document.getElementById('view-proton'), dpi: document.getElementById('view-dpi')};
+  function show(name){
+    for (const k in views) views[k].classList.toggle('hidden', k!==name);
+    document.querySelector(`#tabs input[value="${name}"]`).checked = true;
+    document.title = {warp:'WARP генератор', proton:'Proton → AWG', dpi:'ByeDPI'}[name];
+    try { localStorage.setItem('tab', name); } catch(e){}
+    window.scrollTo(0,0);
+  }
+  document.querySelectorAll('#tabs input').forEach(i=>i.addEventListener('change', ()=>show(i.value)));
+  let saved = null; try { saved = localStorage.getItem('tab'); } catch(e){}
+  show(views[saved] ? saved : 'warp');
+})();
+</script>
+<script>
+(function(){
+
+(() => {
+  const D = {"awgVariants":{"quic":"I1 = <b 0xce000000010897a297ecc34cd6dd000044d0ec2e2e1ea2991f467ace4222129b5a098823784694b4897b9986ae0b7280135fa85e196d9ad980b150122129ce2a9379531b0fd3e871ca5fdb883c369832f730e272d7b8b74f393f9f0fa43f11e510ecb2219a52984410c204cf875585340c62238e14ad04dff382f2c200e0ee22fe743b9c6b8b043121c5710ec289f471c91ee414fca8b8be8419ae8ce7ffc53837f6ade262891895f3f4cecd31bc93ac5599e18e4f01b472362b8056c3172b513051f8322d1062997ef4a383b01706598d08d48c221d30e74c7ce000cdad36b706b1bf9b0607c32ec4b3203a4ee21ab64df336212b9758280803fcab14933b0e7ee1e04a7becce3e2633f4852585c567894a5f9efe9706a151b615856647e8b7dba69ab357b3982f554549bef9256111b2d67afde0b496f16962d4957ff654232aa9e845b61463908309cfd9de0a6abf5f425f577d7e5f6440652aa8da5f73588e82e9470f3b21b27b28c649506ae1a7f5f15b876f56abc4615f49911549b9bb39dd804fde182bd2dcec0c33bad9b138ca07d4a4a1650a2c2686acea05727e2a78962a840ae428f55627516e73c83dd8893b02358e81b524b4d99fda6df52b3a8d7a5291326e7ac9d773c5b43b8444554ef5aea104a738ed650aa979674bbed38da58ac29d87c29d387d80b526065baeb073ce65f075ccb56e47533aef357dceaa8293a523c5f6f790be90e4731123d3c6152a70576e90b4ab5bc5ead01576c68ab633ff7d36dcde2a0b2c68897e1acfc4d6483aaaeb635dd63c96b2b6a7a2bfe042f6aed82e5363aa850aace12ee3b1a93f30d8ab9537df483152a5527faca21efc9981b304f11fc95336f5b9637b174c5a0659e2b22e159a9fed4b8e93047371175b1d6d9cc8ab745f3b2281537d1c75fb9451871864efa5d184c38c185fd203de206751b92620f7c369e031d2041e152040920ac2c5ab5340bfc9d0561176abf10a147287ea90758575ac6a9f5ac9f390d0d5b23ee12af583383d994e22c0cf42383834bcd3ada1b3825a0664d8f3fb678261d57601ddf94a8a68a7c273a18c08aa99c7ad8c6c42eab67718843597ec9930457359dfdfbce024afc2dcf9348579a57d8d3490b2fa99f278f1c37d87dad9b221acd575192ffae1784f8e60ec7cee4068b6b988f0433d96d6a1b1865f4e155e9fe020279f434f3bf1bd117b717b92f6cd1cc9bea7d45978bcc3f24bda631a36910110a6ec06da35f8966c9279d130347594f13e9e07514fa370754d1424c0a1545c5070ef9fb2acd14233e8a50bfc5978b5bdf8bc1714731f798d21e2004117c61f2989dd44f0cf027b27d4019e81ed4b5c31db347c4a3a4d85048d7093cf16753d7b0d15e078f5c7a5205dc2f87e330a1f716738dce1c6180e9d02869b5546f1c4d2748f8c90d9693cba4e0079297d22fd61402dea32ff0eb69ebd65a5d0b687d87e3a8b2c42b648aa723c7c7daf37abcc4bb85caea2ee8f55bec20e913b3324ab8f5c3304f820d42ad1b9f2ffc1a3af9927136b4419e1e579ab4c2ae3c776d293d397d575df181e6cae0a4ada5d67ecea171cca3288d57c7bbdaee3befe745fb7d634f70386d873b90c4d6c6596bb65af68f9e5121e67ebf0d89d3c909ceedfb32ce9575a7758ff080724e1ab5d5f43074ecb53a479af21ed03d7b6899c36631c0166f9d47e5e1d4528a5d3d3f744029c4b1c190cbfbad06f5f83f7ad0429fa9a2719c56ffe3783460e166de2d8>","sip":"I1 = <b 0x494e56495445207369703a626f624062696c6f78692e636f6d205349502f322e300d0a5669613a205349502f322e302f55445020706333332e61746c616e74612e636f6d3b6272616e63683d7a39684734624b3737366173646864730d0a4d61782d466f7277617264733a2037300d0a546f3a20426f62203c7369703a626f624062696c6f78692e636f6d3e0d0a46726f6d3a20416c696365203c7369703a616c6963654061746c616e74612e636f6d3e3b7461673d313932383330313737340d0a43616c6c2d49443a20613834623463373665363637313040706333332e61746c616e74612e636f6d0d0a435365713a2033313431353920494e564954450d0a436f6e746163743a203c7369703a616c69636540706333332e61746c616e74612e636f6d3e0d0a436f6e74656e742d547970653a206170706c69636174696f6e2f7364700d0a436f6e74656e742d4c656e6774683a20300d0a0d0a>\\nI2 = <b 0x5349502f322e302031303020547279696e670d0a5669613a205349502f322e302f55445020706333332e61746c616e74612e636f6d3b6272616e63683d7a39684734624b3737366173646864730d0a546f3a20426f62203c7369703a626f624062696c6f78692e636f6d3e0d0a46726f6d3a20416c696365203c7369703a616c6963654061746c616e74612e636f6d3e3b7461673d313932383330313737340d0a43616c6c2d49443a20613834623463373665363637313040706333332e61746c616e74612e636f6d0d0a435365713a2033313431353920494e564954450d0a436f6e74656e742d4c656e6774683a20300d0a0d0a>"},"clash":[["<b 0xce000000010897a297ecc34cd6dd000044d0ec2e2e1ea2991f467ace4222129b5a098823784694b4897b9986ae0b7280135fa85e196d9ad980b150122129ce2a9379531b0fd3e871ca5fdb883c369832f730e272d7b8b74f393f9f0fa43f11e510ecb2219a52984410c204cf875585340c62238e14ad04dff382f2c200e0ee22fe743b9c6b8b043121c5710ec289f471c91ee414fca8b8be8419ae8ce7ffc53837f6ade262891895f3f4cecd31bc93ac5599e18e4f01b472362b8056c3172b513051f8322d1062997ef4a383b01706598d08d48c221d30e74c7ce000cdad36b706b1bf9b0607c32ec4b3203a4ee21ab64df336212b9758280803fcab14933b0e7ee1e04a7becce3e2633f4852585c567894a5f9efe9706a151b615856647e8b7dba69ab357b3982f554549bef9256111b2d67afde0b496f16962d4957ff654232aa9e845b61463908309cfd9de0a6abf5f425f577d7e5f6440652aa8da5f73588e82e9470f3b21b27b28c649506ae1a7f5f15b876f56abc4615f49911549b9bb39dd804fde182bd2dcec0c33bad9b138ca07d4a4a1650a2c2686acea05727e2a78962a840ae428f55627516e73c83dd8893b02358e81b524b4d99fda6df52b3a8d7a5291326e7ac9d773c5b43b8444554ef5aea104a738ed650aa979674bbed38da58ac29d87c29d387d80b526065baeb073ce65f075ccb56e47533aef357dceaa8293a523c5f6f790be90e4731123d3c6152a70576e90b4ab5bc5ead01576c68ab633ff7d36dcde2a0b2c68897e1acfc4d6483aaaeb635dd63c96b2b6a7a2bfe042f6aed82e5363aa850aace12ee3b1a93f30d8ab9537df483152a5527faca21efc9981b304f11fc95336f5b9637b174c5a0659e2b22e159a9fed4b8e93047371175b1d6d9cc8ab745f3b2281537d1c75fb9451871864efa5d184c38c185fd203de206751b92620f7c369e031d2041e152040920ac2c5ab5340bfc9d0561176abf10a147287ea90758575ac6a9f5ac9f390d0d5b23ee12af583383d994e22c0cf42383834bcd3ada1b3825a0664d8f3fb678261d57601ddf94a8a68a7c273a18c08aa99c7ad8c6c42eab67718843597ec9930457359dfdfbce024afc2dcf9348579a57d8d3490b2fa99f278f1c37d87dad9b221acd575192ffae1784f8e60ec7cee4068b6b988f0433d96d6a1b1865f4e155e9fe020279f434f3bf1bd117b717b92f6cd1cc9bea7d45978bcc3f24bda631a36910110a6ec06da35f8966c9279d130347594f13e9e07514fa370754d1424c0a1545c5070ef9fb2acd14233e8a50bfc5978b5bdf8bc1714731f798d21e2004117c61f2989dd44f0cf027b27d4019e81ed4b5c31db347c4a3a4d85048d7093cf16753d7b0d15e078f5c7a5205dc2f87e330a1f716738dce1c6180e9d02869b5546f1c4d2748f8c90d9693cba4e0079297d22fd61402dea32ff0eb69ebd65a5d0b687d87e3a8b2c42b648aa723c7c7daf37abcc4bb85caea2ee8f55bec20e913b3324ab8f5c3304f820d42ad1b9f2ffc1a3af9927136b4419e1e579ab4c2ae3c776d293d397d575df181e6cae0a4ada5d67ecea171cca3288d57c7bbdaee3befe745fb7d634f70386d873b90c4d6c6596bb65af68f9e5121e67ebf0d89d3c909ceedfb32ce9575a7758ff080724e1ab5d5f43074ecb53a479af21ed03d7b6899c36631c0166f9d47e5e1d4528a5d3d3f744029c4b1c190cbfbad06f5f83f7ad0429fa9a2719c56ffe3783460e166de2d8>"],["<b 0xc400000001015c000040570b2e25e1a2fb2e1d5cf2bfdaeb0ca79c3255f6384628e6e6c22adb43440db63fa1d26ad16120d9cbdbf0dc2f7a8eb3525561b193c6b6a0ef44e8d118c3b04a3ae880c081a9b9e97321315915787938abd8b925506b830d>"],["<b 0x494e56495445207369703a626f624062696c6f78692e636f6d205349502f322e300d0a5669613a205349502f322e302f55445020706333332e61746c616e74612e636f6d3b6272616e63683d7a39684734624b3737366173646864730d0a4d61782d466f7277617264733a2037300d0a546f3a20426f62203c7369703a626f624062696c6f78692e636f6d3e0d0a46726f6d3a20416c696365203c7369703a616c6963654061746c616e74612e636f6d3e3b7461673d313932383330313737340d0a43616c6c2d49443a20613834623463373665363637313040706333332e61746c616e74612e636f6d0d0a435365713a2033313431353920494e564954450d0a436f6e746163743a203c7369703a616c69636540706333332e61746c616e74612e636f6d3e0d0a436f6e74656e742d547970653a206170706c69636174696f6e2f7364700d0a436f6e74656e742d4c656e6774683a20300d0a0d0a>","<b 0x5349502f322e302031303020547279696e670d0a5669613a205349502f322e302f55445020706333332e61746c616e74612e636f6d3b6272616e63683d7a39684734624b3737366173646864730d0a546f3a20426f62203c7369703a626f624062696c6f78692e636f6d3e0d0a46726f6d3a20416c696365203c7369703a616c6963654061746c616e74612e636f6d3e3b7461673d313932383330313737340d0a43616c6c2d49443a20613834623463373665363637313040706333332e61746c616e74612e636f6d0d0a435365713a2033313431353920494e564954450d0a436f6e74656e742d4c656e6774683a20300d0a0d0a>"]],"xray":["ca000000010192000040523d20151ea578688a48502d1b7d5ae46906ceb14547fec9aee98a407dab61b229ca5f6707be89c159f3cf9b73a3b8d906f7d3e307f8e39fdb0d35b23c0ffc635d285418cea8bfd98009d234e0e4f95891a7f4","c400000001015c000040570b2e25e1a2fb2e1d5cf2bfdaeb0ca79c3255f6384628e6e6c22adb43440db63fa1d26ad16120d9cbdbf0dc2f7a8eb3525561b193c6b6a0ef44e8d118c3b04a3ae880c081a9b9e97321315915787938abd8b925506b830d","cb0000000101d6000040500195593d5d325e28e7a9d879ff474b9a1a344d76a202d92776ceaee0e7f8d933ded8bc2f49a31d19cfa2f42a8b6e056c76c4d64b4f09d870f342e0872e69f5486b4e35e32314107a3937b8d3cf14cfc8","ce0000000101a400004056160e0ac66b428015297d5e103316b68a89058b61bd795b8cdfd9e6f10e28626e7a4cdf5439f6f67a3b29b4a72361b99cd77343bcb2de18370bdb40b930b3720f46ac48c1833eea55caf480f801f7cbf2694c9860cb6b","c70000000101ee00004052dce5fd8b7962ba5c6a03d50565ac10d5cf625b0504d3dd5fc9d3e1e620bb4fd278dd951bb491a144244d01fd9decd226554690447e87773fb6e5212d09e8a5aa2cd9a2a3e25325b5b81264b0a2c315594e05"],"sites":{"youtube":"1.0.0.0/9, 1.192.0.0/10, 101.64.0.0/10, 103.0.0.0/14, 103.100.128.0/19, 103.101.0.0/18, 103.103.128.0/17, 103.105.0.0/16, 103.106.192.0/18, 103.107.128.0/17, 103.108.0.0/17, 103.111.128.0/17, 103.111.64.0/19, 103.112.48.0/21, 103.118.64.0/18, 103.119.0.0/16, 103.12.0.0/16, 103.120.0.0/16, 103.122.0.0/15, 103.124.0.0/16, 103.132.16.0/20, 103.132.64.0/18, 103.137.0.0/17, 103.139.128.0/17, 103.14.16.0/20, 103.140.0.0/16, 103.141.64.0/22, 103.144.0.0/16, 103.146.0.0/15, 103.148.0.0/14, 103.15.0.0/16, 103.152.0.0/13, 103.160.0.0/11, 103.17.128.0/17, 103.192.0.0/17, 103.193.0.0/17, 103.196.128.0/17, 103.199.0.0/18, 103.199.192.0/19, 103.199.224.0/21, 103.199.64.0/20, 103.20.0.0/16, 103.200.28.0/22, 103.200.32.0/19, 103.206.128.0/18, 103.21.0.0/17, 103.21.128.0/18, 103.211.104.0/21, 103.211.16.0/20, 103.214.160.0/20, 103.214.192.0/18, 103.218.0.0/16, 103.221.128.0/17, 103.225.176.0/20, 103.225.96.0/19, 103.226.128.0/18, 103.226.224.0/19, 103.228.130.0/23, 103.230.0.0/17, 103.232.128.0/19, 103.233.0.0/16, 103.234.0.0/17, 103.240.180.0/22, 103.242.0.0/19, 103.242.128.0/17, 103.243.0.0/18, 103.243.112.0/21, 103.246.240.0/21, 103.249.0.0/16, 103.25.128.0/17, 103.251.0.0/17, 103.251.192.0/18, 103.252.96.0/19, 103.26.208.0/20, 103.27.0.0/17, 103.28.0.0/15, 103.38.0.0/16, 103.39.128.0/17, 103.39.64.0/18, 103.40.0.0/16, 103.41.0.0/19, 103.42.0.0/16, 103.44.0.0/16, 103.52.0.0/16, 103.54.32.0/19, 103.56.0.0/17, 103.58.64.0/18, 103.59.128.0/17, 103.62.128.0/17, 103.66.64.0/18, 103.7.0.0/17, 103.70.0.0/16, 103.73.160.0/21, 103.73.64.0/18, 103.76.192.0/18, 103.80.0.0/17, 103.85.128.0/17, 103.85.64.0/18, 103.88.192.0/19, 103.89.0.0/16, 103.94.128.0/17, 103.97.0.0/18, 103.97.128.0/18, 104.16.0.0/12, 104.237.160.0/19, 104.244.40.0/21, 104.36.192.0/21, 105.0.0.0/8, 106.0.0.0/8, 107.181.160.0/19, 108.160.160.0/20, 108.177.0.0/17, 109.224.41.0/24, 109.239.184.0/21, 110.0.0.0/10, 110.128.0.0/10, 110.64.0.0/12, 110.93.128.0/17, 111.0.0.0/8, 112.0.0.0/8, 113.128.0.0/10, 113.192.0.0/13, 113.64.0.0/10, 114.0.0.0/9, 114.136.0.0/13, 114.250.63.0/24, 114.250.64.0/23, 114.250.67.0/24, 114.250.69.0/24, 114.250.70.0/24, 115.126.0.0/15, 115.164.0.0/15, 115.176.0.0/12, 115.64.0.0/11, 116.204.128.0/18, 116.206.0.0/18, 116.206.128.0/19, 116.212.128.0/19, 116.56.0.0/13, 116.64.0.0/10, 117.0.0.0/12, 117.128.0.0/9, 117.52.0.0/15, 117.55.224.0/19, 117.96.0.0/12, 118.107.180.0/22, 118.128.0.0/9, 118.68.0.0/14, 118.96.0.0/13, 119.0.0.0/13, 119.152.0.0/13, 119.16.0.0/12, 119.160.0.0/11, 119.32.0.0/11, 12.0.0.0/8, 120.0.0.0/8, 121.46.64.0/19, 121.64.0.0/12, 122.0.0.0/10, 122.144.0.0/14, 122.152.0.0/13, 122.192.0.0/11, 122.248.0.0/14, 122.252.0.0/15, 123.104.0.0/13, 123.128.0.0/10, 123.192.0.0/11, 123.240.0.0/13, 123.253.0.0/18, 124.0.0.0/9, 124.192.0.0/11, 124.248.0.0/14, 125.128.0.0/9, 125.64.0.0/10, 128.0.0.0/16, 128.121.0.0/16, 128.242.0.0/16, 128.75.0.0/16, 130.211.0.0/16, 136.22.128.0/19, 137.59.16.0/20, 137.59.32.0/20, 137.59.64.0/18, 139.5.64.0/19, 14.102.128.0/18, 14.128.0.0/9, 140.213.0.0/16, 142.161.0.0/16, 142.250.0.0/15, 144.208.192.0/18, 144.48.128.0/18, 145.236.72.0/23, 145.255.0.0/20, 148.163.0.0/17, 148.64.96.0/20, 148.69.0.0/16, 149.54.0.0/17, 150.107.0.0/18, 150.107.204.0/22, 150.129.0.0/21, 150.129.32.0/19, 150.129.96.0/19, 154.0.0.0/13, 154.64.0.0/10, 156.233.0.0/16, 157.20.0.0/16, 157.240.0.0/16, 157.8.0.0/14, 159.106.0.0/16, 159.138.0.0/16, 159.192.0.0/16, 159.65.0.0/16, 161.49.0.0/17, 162.125.0.0/16, 162.220.8.0/21, 162.252.180.0/22, 163.40.0.0/13, 163.53.64.0/18, 164.215.0.0/16, 165.165.0.0/16, 165.21.0.0/16, 166.70.0.0/16, 168.143.0.0/16, 170.238.0.0/16, 171.128.0.0/9, 171.96.0.0/11, 172.217.0.0/16, 172.253.0.0/16, 172.64.0.0/13, 173.194.0.0/16, 173.208.128.0/17, 173.231.0.0/18, 173.234.32.0/19, 173.236.128.0/17, 173.244.192.0/19, 173.252.192.0/18, 173.252.64.0/18, 173.255.192.0/18, 174.36.0.0/15, 175.104.0.0/14, 175.112.0.0/12, 175.96.0.0/13, 176.28.128.0/17, 177.64.0.0/12, 178.151.230.0/24, 178.176.156.0/24, 178.22.168.0/24, 178.66.83.0/24, 179.32.0.0/12, 179.60.0.0/16, 179.64.0.0/10, 180.149.224.0/19, 180.149.48.0/20, 180.149.64.0/18, 180.160.0.0/11, 180.192.0.0/11, 181.0.0.0/11, 181.208.0.0/14, 182.0.0.0/9, 182.176.0.0/12, 182.192.0.0/10, 183.0.0.0/8, 184.150.0.0/17, 184.150.128.0/18, 184.172.0.0/15, 184.72.0.0/15, 185.100.209.0/24, 185.158.208.0/23, 185.192.248.0/26, 185.192.249.0/24, 185.192.251.192/26, 185.225.248.0/24, 185.23.124.0/23, 185.45.4.0/22, 185.48.9.0/24, 185.5.161.0/26, 185.60.216.0/22, 185.61.94.0/23, 186.128.0.0/9, 187.0.0.0/11, 187.128.0.0/9, 188.114.96.0/22, 188.120.127.0/24, 188.21.9.0/24, 188.234.136.0/21, 188.43.61.0/24, 188.43.68.0/23, 188.93.174.0/24, 189.128.0.0/9, 190.0.0.0/10, 190.224.0.0/11, 192.133.76.0/22, 192.135.88.0/21, 192.178.0.0/15, 192.248.0.0/17, 192.86.0.0/24, 193.109.164.0/22, 193.126.242.0/26, 194.78.0.0/24, 194.9.24.0/24, 194.9.25.0/24, 195.12.177.0/26, 195.176.255.192/26, 195.187.0.0/16, 195.239.44.0/24, 195.87.177.0/24, 195.95.178.0/24, 196.1.128.0/17, 196.128.0.0/9, 196.32.0.0/11, 197.0.0.0/8, 198.27.64.0/18, 198.44.160.0/19, 199.16.156.0/22, 199.193.112.0/21, 199.59.148.0/22, 199.85.224.0/21, 199.96.56.0/21, 200.96.0.0/11, 201.0.0.0/11, 201.160.0.0/11, 201.48.0.0/16, 202.128.0.0/14, 202.136.0.0/13, 202.148.0.0/14, 202.152.0.0/13, 202.160.0.0/15, 202.163.0.0/16, 202.165.0.0/16, 202.166.0.0/15, 202.168.0.0/15, 202.182.0.0/15, 202.184.0.0/13, 202.24.0.0/13, 202.39.0.0/16, 202.51.64.0/21, 202.51.72.0/22, 202.51.79.0/24, 202.52.0.0/14, 202.60.0.0/16, 202.64.0.0/14, 202.68.0.0/15, 202.70.0.0/16, 202.72.0.0/14, 202.79.0.0/17, 202.80.0.0/13, 202.88.0.0/14, 202.93.0.0/16, 203.101.0.0/16, 203.110.0.0/15, 203.112.0.0/12, 203.128.0.0/12, 203.13.128.0/17, 203.144.0.0/13, 203.162.0.0/15, 203.167.0.0/16, 203.170.0.0/16, 203.171.128.0/17, 203.176.0.0/13, 203.184.0.0/14, 203.189.0.0/17, 203.192.0.0/10, 203.64.0.0/13, 203.76.0.0/15, 203.78.0.0/17, 203.80.0.0/13, 204.145.2.0/23, 204.79.196.0/23, 204.84.0.0/15, 205.186.128.0/18, 206.144.0.0/14, 207.231.168.0/21, 208.0.0.0/11, 208.101.0.0/18, 208.110.64.0/19, 208.187.128.0/17, 208.192.0.0/10, 208.43.0.0/16, 208.54.0.0/17, 208.77.40.0/21, 208.84.220.0/22, 208.98.128.0/18, 209.115.128.0/17, 209.141.112.0/20, 209.145.96.0/19, 209.146.0.0/17, 209.148.128.0/17, 209.191.192.0/19, 209.52.0.0/15, 209.85.128.0/17, 209.91.64.0/18, 209.95.32.0/19, 210.0.0.0/7, 212.106.200.0/21, 212.113.52.0/24, 212.154.0.0/17, 212.156.0.0/16, 212.188.10.0/24, 212.188.34.0/24, 212.188.35.0/24, 212.188.37.0/24, 212.188.49.0/24, 212.20.18.0/24, 212.39.86.0/24, 212.43.1.0/24, 212.43.8.0/21, 212.55.184.0/22, 212.90.48.0/20, 213.152.1.64/27, 213.202.0.0/21, 213.221.56.0/27, 213.55.64.0/18, 213.59.210.0/24, 213.59.237.0/24, 216.105.64.0/20, 216.123.192.0/18, 216.19.176.0/20, 216.239.32.0/19, 216.58.192.0/19, 217.119.118.64/26, 217.130.7.0/25, 217.175.200.64/26, 217.197.248.0/23, 217.73.128.0/22, 218.0.0.0/7, 220.0.0.0/9, 220.160.0.0/11, 221.0.0.0/8, 222.0.0.0/8, 223.128.0.0/9, 223.25.128.0/17, 223.27.128.0/17, 223.32.0.0/11, 23.142.48.0/24, 23.152.160.0/24, 23.192.0.0/11, 23.224.0.0/15, 23.234.0.0/18, 23.96.0.0/13, 24.244.0.0/18, 27.112.0.0/13, 27.128.0.0/9, 27.2.0.0/15, 27.64.0.0/11, 27.96.0.0/12, 31.13.64.0/18, 31.145.0.0/16, 34.64.0.0/10, 36.0.0.0/9, 37.152.0.0/22, 38.0.0.0/7, 4.0.0.0/9, 40.136.0.0/15, 41.0.0.0/8, 42.0.0.0/8, 43.224.0.0/16, 43.226.16.0/20, 43.228.0.0/16, 43.230.128.0/21, 43.245.128.0/20, 43.245.144.0/21, 43.245.192.0/20, 43.245.96.0/20, 43.250.0.0/16, 43.252.16.0/21, 45.112.128.0/18, 45.113.128.0/18, 45.114.8.0/21, 45.116.192.0/19, 45.116.224.0/20, 45.118.240.0/21, 45.121.128.0/17, 45.124.0.0/18, 45.127.0.0/17, 45.14.108.0/22, 45.249.0.0/16, 45.253.0.0/16, 45.54.0.0/17, 45.64.0.0/16, 45.76.0.0/15, 46.134.192.0/18, 46.32.101.0/24, 46.36.112.0/20, 46.61.0.0/16, 47.88.0.0/14, 49.192.0.0/11, 49.224.0.0/13, 49.32.0.0/11, 5.195.0.0/16, 5.21.228.0/22, 5.30.0.0/15, 5.32.175.0/24, 50.0.0.0/15, 50.117.0.0/17, 50.128.0.0/9, 50.22.0.0/15, 50.87.0.0/16, 51.39.0.0/16, 52.0.0.0/10, 52.160.0.0/11, 54.144.0.0/12, 54.224.0.0/11, 54.64.0.0/11, 58.0.0.0/10, 58.112.0.0/12, 58.128.0.0/9, 58.64.0.0/11, 59.0.0.0/9, 59.152.0.0/18, 59.152.96.0/20, 59.153.128.0/17, 59.160.0.0/11, 61.0.0.0/13, 61.128.0.0/9, 61.16.0.0/12, 61.32.0.0/11, 61.64.0.0/10, 62.0.0.0/16, 62.149.96.0/20, 62.212.240.0/20, 62.231.75.0/24, 63.64.0.0/10, 64.13.192.0/18, 64.15.112.0/20, 64.233.160.0/19, 64.4.224.0/20, 64.53.128.0/17, 65.192.0.0/11, 65.240.0.0/13, 65.49.0.0/17, 66.102.0.0/20, 66.112.176.0/20, 66.220.144.0/20, 66.248.254.0/24, 66.58.128.0/17, 66.96.224.0/19, 67.15.0.0/16, 67.204.128.0/18, 67.228.0.0/16, 67.230.160.0/19, 67.50.0.0/17, 69.162.128.0/18, 69.171.224.0/19, 69.197.128.0/18, 69.30.0.0/18, 69.48.216.0/21, 69.50.192.0/19, 69.51.64.0/18, 69.59.192.0/19, 69.63.176.0/20, 72.19.32.0/19, 72.234.0.0/15, 74.125.0.0/16, 74.86.0.0/16, 75.126.0.0/16, 75.98.144.0/20, 77.120.12.0/22, 77.37.252.0/23, 78.37.109.192/26, 78.37.65.0/26, 79.133.76.0/23, 8.242.0.0/15, 80.253.29.0/24, 80.77.172.0/22, 80.87.198.0/23, 80.87.64.0/19, 80.97.192.0/18, 81.130.96.0/20, 81.192.0.0/16, 81.200.2.0/24, 81.23.16.0/21, 81.23.24.0/21, 81.27.242.128/27, 82.102.152.0/21, 82.102.167.0/24, 82.114.162.0/23, 82.147.133.128/26, 82.148.96.0/19, 82.76.231.64/26, 83.219.145.0/24, 83.224.64.0/20, 84.15.64.0/24, 84.235.64.0/22, 84.235.77.0/24, 84.235.78.0/24, 85.112.112.0/20, 85.249.244.0/23, 86.120.7.128/27, 86.62.126.64/27, 87.245.192.0/20, 87.245.216.0/21, 88.191.249.0/24, 88.201.0.0/17, 88.218.139.0/24, 89.113.122.0/23, 89.27.128.0/17, 90.180.0.0/14, 90.200.0.0/14, 91.185.2.0/24, 92.80.0.0/13, 93.123.23.0/24, 93.179.96.0/21, 94.142.38.0/24, 94.203.108.0/23, 94.24.192.0/18, 94.31.189.0/24, 94.96.0.0/14, 95.142.107.0/27, 95.167.73.0/24, 95.168.192.0/19, 95.59.170.0/24, 95.66.0.0/18, 96.30.64.0/18, 96.44.128.0/18, 96.63.128.0/19, 96.9.128.0/19, 98.159.96.0/20","discord":"103.224.0.0/16, 104.16.0.0/12, 108.136.0.0/14, 108.156.0.0/14, 108.177.0.0/17, 13.224.0.0/12, 13.248.0.0/14, 13.32.0.0/12, 138.128.136.0/21, 142.250.0.0/15, 143.204.0.0/16, 15.196.0.0/14, 15.204.0.0/16, 162.158.0.0/15, 162.210.192.0/21, 166.117.0.0/16, 170.178.160.0/19, 172.217.0.0/16, 172.241.208.0/21, 172.253.0.0/16, 172.64.0.0/13, 173.194.0.0/16, 173.208.64.0/18, 173.234.144.0/20, 18.128.0.0/9, 18.64.0.0/10, 185.107.56.0/24, 188.114.96.0/22, 192.157.48.0/20, 192.178.0.0/15, 199.115.112.0/21, 204.11.56.0/23, 207.244.64.0/18, 208.115.192.0/18, 208.91.196.0/23, 209.85.128.0/17, 212.32.224.0/19, 212.7.208.0/22, 212.92.104.0/21, 216.137.32.0/19, 216.245.192.0/19, 216.58.192.0/19, 23.227.32.0/19, 23.82.0.0/16, 3.128.0.0/9, 34.0.0.0/15, 34.2.0.0/15, 34.64.0.0/10, 35.192.0.0/12, 35.208.0.0/12, 37.1.216.0/21, 37.48.64.0/18, 45.134.10.0/24, 5.200.14.128/25, 5.79.64.0/18, 51.81.0.0/16, 52.222.0.0/16, 52.84.0.0/14, 54.224.0.0/11, 64.120.0.0/18, 64.233.160.0/19, 64.31.0.0/18, 65.8.0.0/14, 66.22.192.0/18, 69.162.64.0/18, 70.32.0.0/20, 74.125.0.0/16, 74.63.192.0/18, 75.2.0.0/17, 76.223.0.0/17, 77.247.183.144/28, 8.0.0.0/13, 8.32.0.0/11, 81.17.16.0/20, 81.171.0.0/19, 82.192.64.0/19, 94.229.72.112/28, 99.83.128.0/17, 99.84.0.0/16, 99.86.0.0/16","twitter":"104.16.0.0/12, 104.244.40.0/21, 146.75.0.0/16, 151.101.0.0/16, 152.192.0.0/13, 162.158.0.0/15, 172.64.0.0/13, 192.229.128.0/17, 199.232.0.0/16, 209.237.192.0/19, 68.232.32.0/20, 69.195.160.0/19, 93.184.220.0/22","instagram":"102.0.0.0/8, 103.200.28.0/22, 103.214.160.0/20, 103.226.224.0/19, 103.228.130.0/23, 103.230.0.0/17, 103.240.180.0/22, 103.246.240.0/21, 103.252.96.0/19, 103.39.64.0/18, 103.42.0.0/16, 103.56.0.0/17, 103.73.160.0/21, 103.97.0.0/18, 103.97.128.0/18, 104.16.0.0/12, 104.244.40.0/21, 107.181.160.0/19, 108.160.160.0/20, 111.0.0.0/8, 114.0.0.0/10, 115.126.0.0/15, 116.64.0.0/10, 118.107.180.0/22, 118.128.0.0/9, 119.16.0.0/12, 122.0.0.0/10, 122.248.0.0/14, 124.0.0.0/9, 128.121.0.0/16, 128.242.0.0/16, 129.134.0.0/16, 130.211.0.0/16, 148.163.0.0/17, 150.107.0.0/18, 154.64.0.0/10, 156.233.0.0/16, 157.240.0.0/16, 159.106.0.0/16, 159.138.0.0/16, 159.65.0.0/16, 162.125.0.0/16, 162.220.8.0/21, 163.70.128.0/17, 168.143.0.0/16, 173.208.128.0/17, 173.231.0.0/18, 173.234.32.0/19, 173.236.128.0/17, 173.244.192.0/19, 173.252.192.0/18, 173.252.64.0/18, 173.255.192.0/18, 174.36.0.0/15, 179.60.0.0/16, 182.0.0.0/9, 184.172.0.0/15, 184.72.0.0/15, 185.45.4.0/22, 185.60.216.0/22, 192.133.76.0/22, 195.229.0.0/16, 198.27.64.0/18, 198.44.160.0/19, 199.16.156.0/22, 199.193.112.0/21, 199.59.148.0/22, 199.96.56.0/21, 202.160.0.0/15, 202.182.0.0/15, 202.52.0.0/14, 203.110.0.0/15, 204.79.196.0/23, 205.186.128.0/18, 208.0.0.0/11, 208.101.0.0/18, 208.43.0.0/16, 208.77.40.0/21, 209.95.32.0/19, 210.0.0.0/7, 212.95.183.192/26, 213.169.57.64/26, 23.224.0.0/15, 23.234.0.0/18, 23.96.0.0/13, 31.13.64.0/18, 38.0.0.0/7, 4.0.0.0/9, 43.226.16.0/20, 45.114.8.0/21, 45.76.0.0/15, 47.88.0.0/14, 50.117.0.0/17, 50.22.0.0/15, 50.87.0.0/16, 52.0.0.0/10, 52.160.0.0/11, 54.224.0.0/11, 54.64.0.0/11, 57.0.0.0/8, 59.0.0.0/9, 59.160.0.0/11, 64.13.192.0/18, 65.49.0.0/17, 66.220.144.0/20, 67.15.0.0/16, 67.228.0.0/16, 67.230.160.0/19, 69.162.128.0/18, 69.171.224.0/19, 69.197.128.0/18, 69.30.0.0/18, 69.50.192.0/19, 69.63.176.0/20, 74.86.0.0/16, 75.126.0.0/16, 80.87.198.0/23, 87.245.208.0/20, 88.191.249.0/24, 93.179.96.0/21, 96.44.128.0/18, 98.159.96.0/20","facebook":"102.0.0.0/8, 103.200.28.0/22, 103.226.224.0/19, 103.228.130.0/23, 103.230.0.0/17, 103.240.180.0/22, 103.246.240.0/21, 103.252.96.0/19, 103.42.0.0/16, 103.56.0.0/17, 103.73.160.0/21, 103.97.0.0/18, 103.97.128.0/18, 104.16.0.0/12, 104.244.40.0/21, 104.64.0.0/10, 107.181.160.0/19, 108.160.160.0/20, 111.0.0.0/8, 112.0.0.0/8, 114.0.0.0/10, 115.126.0.0/15, 116.64.0.0/10, 118.107.180.0/22, 118.128.0.0/9, 119.16.0.0/12, 122.0.0.0/10, 122.248.0.0/14, 124.0.0.0/9, 128.121.0.0/16, 128.242.0.0/16, 129.134.0.0/16, 13.104.0.0/14, 148.163.0.0/17, 150.107.0.0/18, 152.192.0.0/13, 154.64.0.0/10, 156.233.0.0/16, 157.240.0.0/16, 159.106.0.0/16, 159.138.0.0/16, 159.65.0.0/16, 162.125.0.0/16, 162.220.8.0/21, 163.70.128.0/17, 168.143.0.0/16, 173.208.128.0/17, 173.231.0.0/18, 173.236.128.0/17, 173.244.192.0/19, 173.252.192.0/18, 173.252.64.0/18, 173.255.192.0/18, 174.36.0.0/15, 179.60.0.0/16, 182.0.0.0/9, 184.172.0.0/15, 184.24.0.0/13, 184.50.0.0/15, 184.72.0.0/15, 185.45.4.0/22, 185.60.216.0/22, 192.133.76.0/22, 195.229.0.0/16, 198.27.64.0/18, 198.44.160.0/19, 199.16.156.0/22, 199.193.112.0/21, 199.59.148.0/22, 199.96.56.0/21, 2.16.102.0/23, 2.16.154.0/24, 2.16.16.0/23, 2.16.168.0/23, 2.16.170.0/23, 2.16.172.0/23, 2.16.52.0/23, 2.16.62.0/23, 2.17.112.0/22, 2.17.251.0/24, 2.18.16.0/20, 2.18.244.0/22, 2.18.64.0/20, 2.19.192.0/24, 2.19.196.0/22, 2.19.204.0/22, 2.19.240.0/20, 2.19.48.0/20, 2.20.254.0/23, 2.20.45.0/24, 2.21.16.0/20, 2.21.240.0/24, 2.21.244.0/23, 2.21.64.0/20, 2.22.230.0/23, 2.22.61.0/24, 2.22.80.0/20, 2.23.144.0/20, 2.23.160.0/20, 2.23.96.0/20, 202.160.0.0/15, 202.182.0.0/15, 202.52.0.0/14, 203.110.0.0/15, 205.186.128.0/18, 208.0.0.0/11, 208.101.0.0/18, 208.43.0.0/16, 208.77.40.0/21, 209.95.32.0/19, 210.0.0.0/7, 212.95.165.0/26, 213.155.157.0/24, 23.0.0.0/12, 23.192.0.0/11, 23.224.0.0/15, 23.234.0.0/18, 23.32.0.0/11, 23.72.0.0/13, 23.96.0.0/13, 31.13.64.0/18, 38.0.0.0/7, 4.0.0.0/9, 43.226.16.0/20, 45.114.8.0/21, 45.76.0.0/15, 47.88.0.0/14, 5.178.43.0/25, 50.117.0.0/17, 50.22.0.0/15, 50.87.0.0/16, 52.0.0.0/10, 52.160.0.0/11, 54.224.0.0/11, 54.64.0.0/11, 57.0.0.0/8, 59.0.0.0/9, 59.160.0.0/11, 62.115.252.0/24, 62.115.253.0/24, 64.13.192.0/18, 65.49.0.0/17, 66.220.144.0/20, 67.15.0.0/16, 67.228.0.0/16, 67.230.160.0/19, 69.162.128.0/18, 69.171.224.0/19, 69.197.128.0/18, 69.30.0.0/18, 69.50.192.0/19, 69.63.176.0/20, 72.246.0.0/15, 74.86.0.0/16, 75.126.0.0/16, 80.239.138.0/24, 80.67.82.0/24, 80.87.198.0/23, 87.245.192.0/20, 88.191.249.0/24, 88.221.110.0/24, 88.221.111.0/24, 88.221.128.0/21, 92.122.100.0/22, 92.122.160.0/20, 92.122.224.0/21, 92.122.244.0/22, 92.123.132.0/22, 92.123.180.0/22, 92.123.96.0/20, 93.179.96.0/21, 95.100.128.0/20, 95.100.176.0/20, 95.101.108.0/22, 95.101.116.0/22, 95.101.20.0/22, 95.101.24.0/22, 95.101.35.0/24, 95.101.72.0/22, 95.101.76.0/22, 96.16.0.0/15, 96.44.128.0/18, 98.159.96.0/20","viber":"100.24.0.0/13, 100.48.0.0/12, 103.224.0.0/16, 104.16.0.0/12, 104.64.0.0/10, 107.20.0.0/14, 108.128.0.0/13, 108.136.0.0/14, 108.156.0.0/14, 108.177.0.0/17, 118.128.0.0/9, 13.134.0.0/15, 13.208.0.0/12, 13.224.0.0/12, 13.248.0.0/14, 13.32.0.0/12, 136.143.176.0/20, 139.162.0.0/16, 142.250.0.0/15, 143.204.0.0/16, 15.184.0.0/14, 15.196.0.0/14, 152.228.128.0/17, 16.24.0.0/13, 16.60.0.0/16, 172.104.0.0/15, 172.217.0.0/16, 172.253.0.0/16, 172.64.0.0/13, 173.194.0.0/16, 173.222.0.0/15, 174.129.0.0/16, 18.128.0.0/9, 18.64.0.0/10, 184.24.0.0/13, 184.50.0.0/15, 184.72.0.0/15, 185.199.108.0/22, 185.53.177.0/24, 188.114.96.0/22, 192.155.80.0/20, 192.178.0.0/15, 194.90.0.0/16, 199.191.50.0/23, 199.59.240.0/22, 199.60.103.0/24, 2.19.16.0/20, 2.20.16.0/22, 2.20.208.0/20, 2.21.192.0/20, 2.22.128.0/20, 204.141.0.0/16, 204.236.128.0/17, 209.85.128.0/17, 216.137.32.0/19, 216.198.0.0/18, 216.58.192.0/19, 23.0.0.0/12, 23.192.0.0/11, 23.20.0.0/14, 23.239.0.0/19, 23.32.0.0/11, 23.64.0.0/14, 23.72.0.0/13, 3.0.0.0/9, 3.128.0.0/9, 32.192.0.0/12, 34.192.0.0/10, 34.64.0.0/10, 35.152.0.0/13, 35.160.0.0/12, 35.176.0.0/13, 35.184.0.0/13, 37.59.32.0/19, 44.192.0.0/10, 50.16.0.0/14, 51.102.0.0/16, 51.24.0.0/16, 51.91.18.0/24, 52.0.0.0/10, 52.192.0.0/12, 52.208.0.0/13, 52.222.0.0/16, 52.64.0.0/12, 52.84.0.0/14, 54.144.0.0/12, 54.160.0.0/11, 54.192.0.0/12, 54.208.0.0/13, 54.216.0.0/14, 54.220.0.0/15, 54.224.0.0/11, 54.38.0.0/16, 54.64.0.0/11, 63.176.0.0/12, 63.32.0.0/14, 64.233.160.0/19, 65.8.0.0/14, 66.102.0.0/20, 66.175.208.0/20, 67.202.0.0/18, 69.192.0.0/16, 72.246.0.0/15, 72.44.32.0/19, 74.125.0.0/16, 74.207.224.0/19, 75.101.128.0/17, 8.0.0.0/13, 8.32.0.0/11, 88.221.68.0/22, 88.221.96.0/22, 92.122.12.0/22, 92.122.68.0/22, 92.123.160.0/21, 92.123.176.0/22, 95.100.224.0/20, 95.100.48.0/20, 95.213.180.0/23, 96.16.0.0/15, 96.6.0.0/15, 98.80.0.0/12, 99.80.0.0/15, 99.83.128.0/17, 99.84.0.0/16, 99.86.0.0/16","rutracker":"104.16.0.0/12, 162.158.0.0/15, 172.64.0.0/13, 185.81.128.0/23, 188.114.96.0/22","bestchange":"104.16.0.0/12, 138.249.0.0/16, 162.19.0.0/16, 172.64.0.0/13, 185.137.232.0/24, 186.2.165.0/24, 188.124.37.0/24, 188.165.24.0/21, 34.8.0.0/13, 37.9.36.0/22, 5.135.168.224/27, 5.39.61.112/28, 54.36.0.0/15, 94.23.152.0/21, 95.129.232.0/24","animego":"104.16.0.0/12, 172.64.0.0/13, 185.178.208.0/22, 49.13.80.0/20","hdrezka":"104.16.0.0/12, 104.247.80.0/22, 13.248.0.0/14, 136.243.0.0/16, 146.255.0.0/16, 152.89.28.0/23, 162.255.116.0/22, 172.224.0.0/12, 172.64.0.0/13, 176.58.38.0/23, 176.58.40.0/24, 176.58.41.0/24, 176.58.42.0/24, 176.58.45.0/24, 176.58.46.0/24, 176.58.48.0/23, 176.58.50.0/24, 176.58.54.0/24, 176.58.56.0/24, 176.58.57.0/24, 178.63.75.0/26, 179.32.0.0/12, 185.190.188.0/24, 185.190.190.0/24, 185.53.177.0/24, 185.53.178.0/24, 199.59.240.0/22, 199.80.52.0/22, 212.124.124.0/25, 212.124.96.0/24, 213.111.160.0/22, 45.10.216.0/23, 5.45.76.0/22, 5.45.84.0/22, 5.9.51.64/27, 54.64.0.0/11, 76.223.0.0/17, 82.221.104.144/29, 82.221.105.0/24, 85.217.222.0/24, 89.105.207.64/26, 91.132.188.0/23, 99.83.128.0/17","rutor":"104.16.0.0/12, 172.64.0.0/13, 188.114.96.0/22, 193.46.255.0/24, 75.2.0.0/17","nnmclub":"104.16.0.0/12, 172.64.0.0/13, 188.114.96.0/22","itch":"104.16.0.0/12, 104.64.0.0/10, 172.64.0.0/13, 173.222.0.0/15, 184.24.0.0/13, 184.50.0.0/15, 184.84.0.0/14, 2.16.10.0/23, 2.16.102.0/23, 2.16.106.0/23, 2.16.154.0/24, 2.16.16.0/23, 2.16.168.0/23, 2.16.170.0/23, 2.16.224.0/19, 2.16.54.0/23, 2.16.56.0/23, 2.16.88.0/23, 2.17.112.0/22, 2.17.251.0/24, 2.18.244.0/22, 2.18.64.0/20, 2.19.0.0/20, 2.19.112.0/20, 2.19.196.0/22, 2.19.204.0/22, 2.19.48.0/20, 2.20.12.0/22, 2.20.242.0/24, 2.20.254.0/23, 2.20.45.0/24, 2.21.0.0/20, 2.21.173.0/24, 2.21.32.0/20, 2.21.64.0/20, 2.22.230.0/23, 2.22.80.0/20, 2.23.144.0/20, 2.23.160.0/20, 2.23.176.0/20, 2.23.224.0/19, 2.23.96.0/20, 209.95.32.0/19, 212.95.165.0/26, 213.155.157.0/24, 23.192.0.0/11, 23.32.0.0/11, 23.72.0.0/13, 35.192.0.0/12, 45.33.0.0/17, 45.79.0.0/16, 5.178.42.128/25, 5.178.43.0/25, 62.115.252.0/24, 62.115.253.0/24, 72.246.0.0/15, 8.0.0.0/13, 8.32.0.0/11, 80.239.138.0/24, 80.67.82.0/24, 87.245.192.0/20, 88.221.128.0/21, 92.122.125.0/24, 92.122.244.0/22, 92.122.92.0/22, 92.123.132.0/22, 92.123.16.0/20, 92.123.180.0/22, 92.123.236.0/22, 93.186.137.128/25, 95.100.104.0/21, 95.100.128.0/20, 95.100.168.0/21, 95.100.176.0/20, 95.100.248.0/24, 95.101.116.0/22, 95.101.136.0/22, 95.101.168.0/21, 95.101.20.0/22, 95.101.24.0/22, 95.101.35.0/24, 95.101.60.0/22, 95.101.72.0/22, 95.101.76.0/22, 95.101.8.0/22, 96.16.0.0/15","telegram":"100.24.0.0/13, 104.16.0.0/12, 108.177.0.0/17, 132.245.0.0/16, 142.250.0.0/15, 146.75.0.0/16, 149.154.160.0/20, 151.101.0.0/16, 170.149.0.0/16, 172.217.0.0/16, 172.253.0.0/16, 172.64.0.0/13, 173.194.0.0/16, 174.143.0.0/16, 178.128.240.0/20, 18.128.0.0/9, 185.76.151.0/24, 188.166.0.0/17, 192.178.0.0/15, 199.232.0.0/16, 204.212.0.0/14, 209.85.128.0/17, 209.97.0.0/18, 213.180.193.0/24, 216.58.192.0/19, 34.192.0.0/10, 34.64.0.0/10, 35.184.0.0/13, 35.224.0.0/12, 35.240.0.0/13, 40.96.0.0/12, 44.192.0.0/10, 50.128.0.0/9, 52.96.0.0/12, 64.233.160.0/19, 66.102.0.0/20, 66.151.176.0/20, 74.125.0.0/16, 8.0.0.0/13, 8.32.0.0/11, 91.105.192.0/23, 91.108.12.0/22, 91.108.16.0/22, 91.108.20.0/22, 91.108.4.0/22, 91.108.56.0/22, 91.108.8.0/22, 92.204.208.0/20, 95.161.64.0/20","whatsapp":"1.0.0.0/9, 101.48.0.0/13, 101.64.0.0/10, 102.0.0.0/8, 103.0.0.0/14, 103.101.128.0/17, 103.119.0.0/16, 103.120.0.0/16, 103.131.0.0/16, 103.156.0.0/14, 103.160.0.0/11, 103.199.64.0/20, 103.203.88.0/21, 103.21.128.0/18, 103.226.128.0/18, 103.232.128.0/19, 103.234.0.0/17, 103.240.0.0/17, 103.41.0.0/19, 103.63.64.0/18, 103.73.64.0/18, 103.8.0.0/14, 103.97.128.0/18, 105.0.0.0/8, 106.0.0.0/8, 109.173.136.0/21, 109.226.16.128/25, 109.75.52.0/23, 110.0.0.0/11, 110.160.0.0/13, 110.40.0.0/13, 110.93.128.0/17, 111.80.0.0/13, 111.96.0.0/11, 112.0.0.0/8, 113.128.0.0/10, 114.0.0.0/10, 114.136.0.0/13, 114.96.0.0/11, 115.164.0.0/15, 115.64.0.0/11, 116.206.0.0/18, 116.64.0.0/10, 117.128.0.0/9, 117.52.0.0/15, 118.96.0.0/13, 119.16.0.0/12, 119.32.0.0/11, 120.0.0.0/8, 122.0.0.0/10, 122.152.0.0/13, 123.104.0.0/13, 123.128.0.0/10, 123.192.0.0/11, 124.0.0.0/9, 124.208.0.0/12, 126.0.0.0/7, 128.200.0.0/15, 129.0.0.0/16, 129.134.0.0/16, 131.0.0.0/16, 131.108.0.0/16, 131.161.0.0/16, 131.221.0.0/16, 131.255.0.0/16, 132.245.0.0/16, 132.255.0.0/16, 134.19.0.0/16, 137.59.64.0/18, 138.0.0.0/16, 138.118.128.0/17, 138.121.0.0/16, 138.185.0.0/16, 138.186.0.0/16, 138.219.0.0/16, 138.36.0.0/16, 138.59.0.0/16, 138.97.0.0/16, 138.99.0.0/16, 139.5.32.0/19, 139.5.64.0/19, 140.213.0.0/16, 141.0.0.0/8, 143.0.0.0/16, 143.208.0.0/16, 143.255.0.0/16, 145.255.92.0/22, 149.255.0.0/16, 149.62.0.0/16, 15.196.0.0/14, 150.129.128.0/17, 151.0.0.0/8, 152.255.0.0/16, 154.64.0.0/10, 156.0.0.0/16, 156.38.0.0/16, 157.240.0.0/16, 159.146.0.0/16, 159.224.0.0/16, 160.113.0.0/16, 160.202.144.0/21, 161.0.0.0/16, 162.221.212.0/22, 163.70.128.0/17, 165.169.0.0/16, 165.56.0.0/16, 167.142.0.0/16, 168.0.0.0/16, 168.121.0.0/16, 168.181.0.0/16, 168.194.0.0/16, 168.196.0.0/16, 168.197.0.0/16, 168.253.0.0/16, 168.90.0.0/16, 169.239.0.0/16, 170.150.0.0/16, 170.231.0.0/16, 170.233.0.0/16, 170.238.0.0/16, 170.245.0.0/19, 170.246.128.0/17, 170.250.0.0/16, 170.52.48.0/21, 170.78.0.0/16, 170.80.0.0/16, 170.83.0.0/16, 170.84.128.0/18, 170.84.192.0/19, 171.128.0.0/9, 171.96.0.0/11, 172.93.16.0/20, 175.0.0.0/10, 175.96.0.0/13, 176.240.128.0/17, 176.28.128.0/17, 176.58.72.0/24, 177.10.0.0/15, 177.128.0.0/10, 177.16.0.0/12, 177.192.0.0/12, 177.220.0.0/15, 177.223.0.0/16, 177.224.0.0/11, 177.32.0.0/11, 177.64.0.0/12, 177.80.0.0/13, 177.88.0.0/14, 177.92.0.0/16, 177.96.0.0/11, 178.88.114.128/26, 179.0.0.0/11, 179.128.0.0/11, 179.176.0.0/13, 179.184.0.0/14, 179.189.0.0/17, 179.192.0.0/10, 179.32.0.0/12, 179.48.0.0/13, 179.60.0.0/16, 179.62.0.0/15, 179.64.0.0/10, 18.128.0.0/9, 180.149.48.0/20, 180.192.0.0/11, 181.0.0.0/11, 181.116.0.0/14, 181.128.0.0/10, 181.32.0.0/13, 181.64.0.0/11, 182.0.0.0/9, 182.176.0.0/12, 182.192.0.0/10, 183.0.0.0/8, 185.11.11.0/24, 185.143.124.0/22, 185.173.60.0/22, 185.191.52.0/22, 185.2.96.0/22, 185.27.106.0/24, 185.47.188.0/22, 185.48.240.0/24, 185.54.255.128/26, 185.58.68.0/24, 185.60.216.0/22, 185.76.178.0/24, 185.78.131.128/26, 185.78.131.64/26, 185.81.140.0/23, 185.81.33.0/24, 185.82.96.0/24, 185.85.152.0/23, 185.89.218.0/23, 186.0.0.0/15, 186.128.0.0/9, 186.16.0.0/12, 186.2.128.0/19, 186.32.0.0/11, 186.4.0.0/14, 186.64.0.0/10, 186.8.0.0/13, 187.0.0.0/11, 187.128.0.0/9, 187.32.0.0/16, 187.36.0.0/14, 187.48.0.0/12, 187.64.0.0/10, 188.0.149.0/24, 188.137.0.0/17, 188.247.240.0/21, 188.64.201.0/24, 189.0.0.0/12, 189.128.0.0/9, 189.32.0.0/11, 189.64.0.0/10, 190.0.0.0/10, 190.104.0.0/15, 190.107.0.0/16, 190.108.0.0/14, 190.122.0.0/16, 190.123.8.0/21, 190.124.0.0/14, 190.128.0.0/10, 190.211.0.0/17, 190.212.0.0/14, 190.216.0.0/13, 190.80.0.0/13, 190.88.0.0/14, 190.94.0.0/15, 190.96.0.0/14, 191.0.0.0/10, 191.100.0.0/16, 191.102.0.0/15, 191.128.0.0/9, 192.114.144.0/22, 192.124.220.0/24, 192.254.96.0/20, 193.135.136.0/24, 193.212.0.0/15, 193.95.0.0/17, 193.95.164.192/26, 195.12.160.0/19, 195.122.31.128/26, 195.13.189.64/26, 195.162.80.0/22, 195.174.0.0/15, 195.222.47.0/24, 195.229.0.0/16, 195.250.64.0/19, 195.5.48.0/20, 196.128.0.0/9, 197.0.0.0/8, 198.231.28.0/22, 200.0.0.0/10, 200.128.0.0/11, 200.160.0.0/15, 200.176.0.0/12, 200.192.0.0/14, 200.198.0.0/15, 200.208.0.0/12, 200.69.64.0/18, 200.72.0.0/13, 200.80.0.0/12, 200.96.0.0/11, 201.0.0.0/11, 201.128.0.0/12, 201.148.0.0/17, 201.152.0.0/13, 201.160.0.0/11, 201.192.0.0/10, 201.47.0.0/16, 201.48.0.0/16, 201.52.0.0/14, 201.56.0.0/13, 201.80.0.0/12, 202.128.0.0/14, 202.136.0.0/13, 202.152.0.0/13, 202.164.128.0/18, 202.176.0.0/14, 202.184.0.0/13, 202.51.79.0/24, 202.64.0.0/14, 202.70.0.0/16, 202.71.0.0/22, 202.72.0.0/14, 202.88.0.0/16, 202.90.0.0/15, 202.93.0.0/16, 203.104.0.0/14, 203.109.128.0/17, 203.112.0.0/12, 203.128.0.0/12, 203.184.0.0/14, 203.192.0.0/10, 203.52.0.0/15, 203.72.0.0/14, 203.76.0.0/15, 203.78.0.0/17, 203.82.0.0/15, 203.99.0.0/16, 204.110.56.0/21, 204.186.0.0/16, 204.236.64.0/18, 207.194.0.0/16, 207.228.128.0/18, 207.229.128.0/18, 207.70.128.0/18, 208.104.0.0/16, 208.66.48.0/21, 209.104.64.0/18, 209.146.0.0/17, 209.148.128.0/17, 209.52.0.0/15, 209.59.64.0/18, 209.91.64.0/18, 210.0.0.0/7, 212.112.117.224/27, 212.113.184.0/22, 212.120.241.0/24, 212.145.0.0/16, 212.154.111.0/24, 212.199.140.0/24, 212.2.96.0/19, 212.217.0.0/17, 212.232.96.0/20, 212.30.0.0/19, 212.43.8.0/21, 212.47.128.0/19, 212.52.128.0/19, 212.56.132.0/23, 212.65.152.0/23, 212.65.158.0/23, 212.68.192.0/20, 212.68.208.0/20, 212.95.183.192/26, 212.96.64.0/19, 213.150.160.0/19, 213.157.192.0/19, 213.180.193.0/24, 213.202.0.0/21, 213.204.119.0/24, 213.230.52.0/22, 213.52.0.0/17, 213.57.0.0/17, 213.94.76.0/24, 216.177.160.0/19, 217.168.6.0/23, 217.168.80.0/20, 217.22.184.0/22, 217.25.24.0/23, 217.64.96.0/20, 217.73.140.0/23, 217.76.71.0/24, 217.79.128.0/21, 219.0.0.0/8, 222.128.0.0/11, 223.128.0.0/9, 223.27.128.0/17, 24.200.0.0/14, 24.222.0.0/16, 24.236.64.0/18, 24.244.0.0/18, 24.55.64.0/18, 27.64.0.0/11, 3.0.0.0/9, 3.128.0.0/9, 31.13.64.0/18, 31.145.0.0/16, 31.3.93.0/24, 36.0.0.0/9, 37.152.0.0/22, 37.238.0.0/16, 37.26.80.0/23, 40.96.0.0/12, 41.0.0.0/8, 42.0.0.0/8, 43.224.0.0/16, 43.230.128.0/21, 43.245.96.0/20, 43.246.0.0/15, 43.252.0.0/20, 45.112.176.0/20, 45.113.128.0/18, 45.118.240.0/21, 45.121.128.0/17, 45.160.0.0/12, 45.178.0.0/15, 45.224.0.0/14, 45.228.0.0/15, 45.232.0.0/13, 45.6.64.0/18, 45.64.0.0/16, 45.7.0.0/16, 46.1.124.0/23, 46.196.0.0/16, 46.197.0.0/18, 46.99.249.0/24, 49.224.0.0/13, 49.32.0.0/11, 49.64.0.0/10, 5.104.2.0/24, 5.20.0.0/21, 5.22.176.0/20, 51.39.0.0/16, 52.96.0.0/12, 54.160.0.0/11, 54.224.0.0/11, 57.0.0.0/8, 58.128.0.0/9, 58.16.0.0/12, 59.153.128.0/17, 59.153.64.0/18, 59.160.0.0/11, 60.0.0.0/8, 62.0.0.0/16, 62.1.0.0/16, 62.197.192.0/18, 62.209.24.0/21, 62.24.128.0/17, 62.251.128.0/17, 62.4.128.0/17, 62.74.63.0/26, 62.75.0.0/19, 62.8.64.0/19, 62.84.0.0/20, 63.143.64.0/18, 64.119.192.0/20, 64.66.0.0/20, 65.192.0.0/11, 65.48.128.0/17, 66.128.160.0/19, 66.201.160.0/19, 66.50.0.0/16, 66.8.0.0/17, 66.97.224.0/19, 67.218.80.0/20, 69.92.0.0/16, 70.160.0.0/11, 72.136.0.0/13, 72.192.0.0/11, 74.118.80.0/22, 74.50.208.0/21, 77.136.0.0/16, 77.224.0.0/13, 77.237.0.0/21, 77.243.16.0/21, 77.52.0.0/24, 78.154.160.0/19, 78.159.164.0/22, 78.8.0.0/14, 79.101.112.0/23, 80.76.170.0/23, 81.167.36.0/23, 81.192.0.0/16, 81.196.173.128/26, 81.196.26.128/25, 82.199.192.0/20, 82.76.231.128/26, 82.76.231.192/26, 82.78.186.128/26, 82.78.186.192/26, 82.78.68.0/26, 82.78.68.64/26, 82.85.13.128/26, 82.85.19.0/26, 82.85.43.0/26, 83.119.16.0/20, 83.174.0.0/18, 83.255.224.0/21, 84.15.0.0/16, 84.208.7.0/24, 84.22.34.96/28, 84.91.172.0/24, 85.114.48.0/23, 85.114.96.0/19, 86.110.224.97/32, 86.127.118.0/23, 86.56.128.0/24, 87.201.168.0/21, 87.235.208.0/20, 88.212.9.0/24, 88.216.174.0/24, 89.108.140.0/22, 89.45.2.0/23, 90.244.152.0/21, 91.185.14.0/24, 91.225.200.0/22, 92.63.8.0/21, 92.80.0.0/13, 93.103.0.0/16, 93.191.8.128/26, 93.57.114.0/24, 93.57.122.0/24, 93.57.123.0/24, 93.62.101.0/24, 93.91.192.0/22, 94.153.128.0/17, 94.198.177.0/24, 94.76.104.0/21, 94.79.192.0/19, 94.96.0.0/14, 95.107.145.0/24, 95.209.200.0/21, 95.94.0.0/15"},"nolan":"1.0.0.0/8, 2.0.0.0/7, 4.0.0.0/6, 8.0.0.0/7, 11.0.0.0/8, 12.0.0.0/6, 16.0.0.0/4, 32.0.0.0/3, 64.0.0.0/3, 96.0.0.0/4, 112.0.0.0/5, 120.0.0.0/6, 124.0.0.0/7, 126.0.0.0/8, 128.0.0.0/3, 160.0.0.0/5, 168.0.0.0/8, 169.0.0.0/9, 169.128.0.0/10, 169.192.0.0/11, 169.224.0.0/12, 169.240.0.0/13, 169.248.0.0/14, 169.252.0.0/15, 169.255.0.0/16, 170.0.0.0/7, 172.0.0.0/12, 172.32.0.0/11, 172.64.0.0/10, 172.128.0.0/9, 173.0.0.0/8, 174.0.0.0/7, 176.0.0.0/4, 192.0.0.0/9, 192.128.0.0/11, 192.160.0.0/13, 192.169.0.0/16, 192.170.0.0/15, 192.172.0.0/14, 192.176.0.0/12, 192.192.0.0/10, 193.0.0.0/8, 194.0.0.0/7, 196.0.0.0/6, 200.0.0.0/5, 208.0.0.0/4, 224.0.0.0/4, ::/1, 8000::/2, c000::/3, e000::/4, f000::/5, f800::/6, fe00::/9, fec0::/10, ff00::/8","ports":[500,854,859,864,878,880,890,891,894,903,908,928,934,939,942,943,945,946,955,968,987,988,1002,1010,1014,1018,1070,1074,1180,1387,1701,1843,2371,2408,2506,3138,3476,3581,3854,4177,4198,4233,4500,5279,5956,7103,7152,7156,7281,7559,8319,8742,8854,8886],"domains":["175bru.ru","1tv.ru","2an.ru","2gis.ru","360tv.ru","4ege.ru","5-tv.ru","9111.ru","akbars.ru","allhockey.ru","amalgama-lab.com","apteka.ru","aptekamos.ru","arbitr.ru","arhangelskoe.su","artchive.ru","arzamas.academy","asna.ru","ati.su","autonews.ru","av.ru","avtovzglyad.ru","baby.ru","babyblog.ru","bashinform.ru","bbr.ru","beeline.ru","belkacar.ru","blizko.ru","bolshoi.ru","borodino.ru","bspb.ru","c2dns.net","c2dns.ru","cdek.ru","championat.com","chitalnya.ru","consmed.ru","consultant.ru","cosmo.ru","ctc.ru","culture.ru","dalenabank.ru","datalesson.ru","deepseek.com","delimobil.ru","delivery-club.ru","dellin.ru","dixy.ru","dnevnik.ru","dns-shop.ru","docdoc.ru","doctis.ru","domashniy.ru","doverie-tv.ru","e-katalog.ru","eapteka.ru","edadeal.ru","edimdoma.ru","edu.ru","elibrary.ru","f1news.ru","fantlab.ru","fedsfm.ru","fighttime.ru","filmpro.ru","fipi.ru","fips.ru","fitseven.ru","forumhouse.ru","foxford.ru","friday.ru","fsb.ru","fss.ru","fssprus.ru","garant.ru","gaso.ru","gismeteo.ru","gks.ru","gosfilmofond.ru","goskatalog.ru","habr.ru","health-diet.ru","hermitagemuseum.org","hi-news.ru","histrf.ru","ilibrary.ru","in-space.ru","indicator.ru","infourok.ru","interneturok.ru","invb.ru","irecommend.ru","is74.ru","ivi.ru","joomag.com","jv.ru","karcher.ru","kartaslov.ru","karusel-tv.ru","kg-portal.ru","khl.ru","kinopoisk.ru","knigogid.ru","kodeks.ru","kolesa.ru","kommersant.ru","kopilkaurokov.ru","kp.ru","kreml.ru","kuban24.tv","lektorium.tv","lentainform.com","letidor.ru","lib.ru","linkgroup.ru","litres.ru","livejournal.com","livelib.ru","livesport.ru","lizaalert.org","m24.ru","maam.ru","magnit.ru","mariinsky.ru","matchtv.ru","med-otzyv.ru","medelement.com","medi.ru","mediametrics.ru","medicalinsider.ru","medihost.ru","medikforum.ru","medlinks.ru","medportal.ru","medside.ru","megafon.ru","mel.fm","mirtesen.ru","mirtv.ru","mkala.ru","mob-edu.ru","moluch.ru","moskb.ru","mts.ru","multiurok.ru","mybook.ru","myskills.ru","naked-science.ru","nat-geo.ru","nauchniestati.ru","netology.ru","nevasport.ru","nic.ru","nkj.ru","nplus1.ru","nskbl.ru","nsportal.ru","ntv.ru","nukadeti.ru","obrazovaka.ru","ohotniki.ru","olimpiada.ru","onlinedoctor.ru","onlinetrade.ru","oprf.ru","otr-online.ru","otzovik.com","oum.ru","ped-kopilka.ru","pedsovet.org","pervbank.ru","pikabu.ru","pochtabank.ru","popmech.ru","postupi.online","povar.ru","professionali.ru","profi.ru","proza.ru","psbank.ru","pypi.org","radiomayak.ru","radiorus.ru","radiovesti.ru","rbc.ru","ren.tv","rgo.ru","ria.ru","rlsnet.ru","rosbank.ru","rosreestr.ru","rosuchebnik.ru","rsl.ru","rt.ru","rulit.me","rusarchives.ru","rusmuseum.ru","rusneb.ru","russkiiyazyk.ru","rustih.ru","rutube.ru","samlib.ru","sdamgia.ru","selfpub.ru","shm.ru","sirius.online","skyeng.ru","sledcom.ru","sm-news.ru","smi2.ru","smotrim.ru","soccer.ru","sovcombank.ru","sovsport.ru","spastv.ru","sport24.ru","sportrbc.ru","sportsdaily.ru","stihi.ru","sudact.ru","sudrf.ru","tamtam.chat","tatar-inform.ru","tele2.ru","teleprogramma.pro","tiu.ru","tnt-online.ru","tretyakovgallery.ru","trudvsem.ru","tv3.ru","tvc.ru","tvkultura.ru","tvzvezda.ru","ucheba.ru","uchi.ru","uchportal.ru","unicreditbank.ru","ura.news","uteka.ru","utkonos.ru","vbr.ru","verumreactor.ru","vesti.ru","vgtrk.ru","videouroki.net","vitrina.tv","vm.ru","vokrugsveta.ru","vrachirf.ru","vsrf.ru","webinar.ru","wi-fi.ru","wikireading.ru","woman.ru","worldskills.ru","xn--80aesfpebagmfblc0a.xn--p1ai","xn--80afcdbalict6afooklqi5o.xn--p1ai","xn--j1ahfl.xn--p1ai","xn----7sbb5adknde1cb0dyd.xn--p1ai","xn--2020-f4dsa7cb5cl7h.xn--p1ai","yaklass.ru","youdo.com","youla.ru","zakon.ru","zdorovie.ru","zdorovieinfo.ru","znaika.ru","zoon.ru"]};
+  const $ = id => document.getElementById(id);
+  const val = (id, fb = '') => { const e = $(id); return e.value.trim() || e.placeholder || fb; };
+  const radio = name => document.querySelector(`input[name="${name}"]:checked`).value;
+  const rnd = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const toast = AppToast;
+
+  const DNS = [
+    ['cf', 'Cloudflare 1.1.1.1', '1.1.1.1, 1.0.0.1, 2606:4700:4700::1111, 2606:4700:4700::1001'],
+    ['google', 'Google 8.8.8.8', '8.8.8.8, 8.8.4.4, 2001:4860:4860::8888, 2001:4860:4860::8844'],
+    ['malw', 'dns.malw.link', '95.216.204.218, 80.253.249.40, 2a01:4f9:c014:6dac::1, 2a12:bec4:1460:5b7::2'],
+    ['xbox', 'xbox-dns.ru', '111.88.96.54, 111.88.96.55, 2a00:ab00:1233:26::50, 2a00:ab00:1233:26::51'],
+    ['geohide', 'geohide.ru', '45.155.204.190, 37.230.192.51, 159.194.200.33, 193.233.112.67, 193.233.112.88'],
+    ['comss', 'dns.comss.one', '83.220.169.155, 212.109.195.93, 195.133.25.16, 2a01:230:4:915::2, 2a01:230:4:306::2'],
+  ];
+  const SITE_NAMES = { youtube: 'YouTube', discord: 'Discord', whatsapp: 'WhatsApp', telegram: 'Telegram', twitter: 'Twitter', instagram: 'Instagram', facebook: 'Facebook', viber: 'Viber', itch: 'Itch.io', rutracker: 'RuTracker', rutor: 'Rutor', nnmclub: 'NNMClub', bestchange: 'BestChange', animego: 'AnimeGo', hdrezka: 'HDrezka' };
+  const PREFIXES = ['162.159.192.', '162.159.195.', 'engage.cloudflareclient.com', '8.6.112.', '8.34.70.', '8.34.146.', '8.35.211.', '8.39.125.', '8.39.204.', '8.39.214.', '8.47.69.', '188.114.96.', '188.114.97.', '188.114.98.', '188.114.99.'];
+
+  let account = null;   // {privKey, peer_pub, client_ipv4, client_ipv6}
+  let seed = null;      // случайные значения текущей генерации
+  let outputs = [];
+  let busy = false;
+  let renderId = 0;
+
+  /* ---------- регистрация WARP ---------- */
+  const API = 'https://api.cloudflareclient.com/v0i1909051800/';
+  async function proxyValue() {
+    if (!$('w-useProxy').checked) return null;
+    if (radio('wpx') === 'dpi') return window.AppDpi ? await window.AppDpi.ensure() : (() => { throw new Error('ByeDPI недоступен'); })();
+    const v = $('w-proxy').value.trim();
+    if (!/^(https?|socks5h?|socks4a?|socks):\/\/[^\s/]+$/i.test(v)) throw new Error('Укажите прокси в формате socks5://хост:порт или http://хост:порт (можно user:pass@хост:порт)');
+    return v;
+  }
+  async function apiCall(method, endpoint, body, token) {
+    const proxy = await proxyValue();
+    // Windows: запрос выполняет основной процесс Electron; Android: нативный плагин (прокси) или CapacitorHttp; иначе обычный fetch
+    if (window.warpBridge) return window.warpBridge.request(method, endpoint, body || null, token || null, proxy);
+    const headers = { 'User-Agent': 'CloudflareWarp/1.0', 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const cap = window.Capacitor;
+    if (proxy) {
+      if (!(cap && cap.Plugins && cap.Plugins.WarpHttp)) throw new Error('Прокси работает только в приложении для Android и Windows');
+      const r = await cap.Plugins.WarpHttp.request({ url: API + endpoint, method, headers, body: body ? JSON.stringify(body) : '', proxy });
+      if (r.status < 200 || r.status >= 300) throw new Error(`HTTP ${r.status}: ${String(r.data).slice(0, 160)}`);
+      try { return JSON.parse(r.data); } catch { throw new Error('Некорректный ответ сервера: ' + String(r.data).slice(0, 120)); }
+    }
+    const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 20000);
+    try {
+      const r = await fetch(API + endpoint, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: ctl.signal });
+      const text = await r.text();
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${text.slice(0, 160)}`);
+      try { return JSON.parse(text); } catch { throw new Error('Некорректный ответ сервера: ' + text.slice(0, 120)); }
+    } finally { clearTimeout(tm); }
+  }
+  async function registerWarp() {
+    const kp = X25519.generateKeyPair();
+    const reg = await apiCall('POST', 'reg', { install_id: '', tos: new Date().toISOString(), key: kp.pub, fcm_token: '', type: 'ios', locale: 'en_US' });
+    if (!reg.result || !reg.result.id) throw new Error('Не удалось зарегистрировать устройство');
+    const en = await apiCall('PATCH', `reg/${reg.result.id}`, { warp_enabled: true }, reg.result.token);
+    const c = en.result && en.result.config;
+    if (!c || !c.peers || !c.peers[0]) throw new Error('Cloudflare не вернул конфигурацию');
+    return { privKey: kp.priv, peer_pub: c.peers[0].public_key, client_ipv4: c.interface.addresses.v4, client_ipv6: c.interface.addresses.v6 };
+  }
+
+  /* ---------- параметры ---------- */
+  function newSeed() {
+    const prefix = pick(PREFIXES);
+    return {
+      port: pick(D.ports), prefix, last: rnd(1, 10), num: rnd(10, 99),
+      domain: pick(D.domains), xray: pick(D.xray),
+    };
+  }
+  function endpoint() {
+    const m = $('w-epMode').value;
+    if (m === 'engage') return 'engage.cloudflareclient.com:2408';
+    if (m === 'custom') return $('w-ep').value.trim() || '162.159.192.1:2408';
+    return seed.prefix === 'engage.cloudflareclient.com' ? `${seed.prefix}:${seed.port}` : `${seed.prefix}${seed.last}:${seed.port}`;
+  }
+  const dnsList = () => {
+    let l = DNS.find(d => d[0] === $('w-dns').value)[2].split(',').map(s => s.trim());
+    if (!$('w-ipv6').checked) l = l.filter(x => !x.includes(':'));
+    return l;
+  };
+  const ka = () => $('w-useKa').checked ? val('w-ka', '25') : '';
+  const mtu = () => val('w-mtu', '1280');
+  function allowedIPs() {
+    const v6 = $('w-ipv6').checked;
+    if ($('w-nolan').checked) return v6 ? D.nolan : D.nolan.split(',').map(s => s.trim()).filter(x => !x.includes(':')).join(', ');
+    const sel = Object.keys(D.sites).filter(k => $('w-site-' + k).checked);
+    if (!sel.length) return v6 ? '0.0.0.0/0, ::/0' : '0.0.0.0/0';
+    return sel.map(k => D.sites[k]).join(', ');
+  }
+  function awg3Pairs() {
+    const out = [];
+    if ($('w-awg3').checked) {
+      [['cpa', 'ContentPaddingAddition', 'content-padding-addition'], ['rkat', 'RekeyAfterTime', 'rekey-after-time'], ['rt', 'RekeyTimeout', 'rekey-timeout'],
+       ['rat', 'RejectAfterTime', 'reject-after-time'], ['kt', 'KeepaliveTimeout', 'keepalive-timeout'], ['mha', 'MaxHandshakeAttempts', 'max-handshake-attempts']]
+        .forEach(([id, a, c]) => { const v = val('w-' + id); if (v && Number(v) !== 0) out.push([a, c, v]); });
+    }
+    if ($('w-awg31').checked) {
+      if ($('w-trailers').checked) out.push(['RandomTrailers', 'random-trailers', 'on']);
+      if ($('w-cookies').checked) out.push(['DisableCookies', 'disable-cookies', 'on']);
+    }
+    return out;
+  }
+  const jc = () => $('w-noJunk').checked ? 0 : 4;
+  const addrs = () => $('w-ipv6').checked ? `${account.client_ipv4}, ${account.client_ipv6}` : account.client_ipv4;
+
+  /* ---------- сборка ---------- */
+  async function i1ForDomain(domain) {
+    const v = await window.generateI1FromDomain(domain);
+    if (!v) throw new Error('Не удалось сгенерировать I1 для домена ' + domain);
+    return v;
+  }
+  async function buildAwg() {
+    const variant = radio('wvar');
+    let i1;
+    if (variant === 'quic') i1 = D.awgVariants.quic;
+    else if (variant === 'sip') i1 = D.awgVariants.sip;
+    else i1 = 'I1 = ' + await i1ForDomain($('w-domain').value.trim() || seed.domain);
+    const L = ['[Interface]', `PrivateKey = ${account.privKey}`, `Address = ${addrs()}`, `DNS = ${dnsList().join(', ')}`, `MTU = ${mtu()}`,
+      'S1 = 0', 'S2 = 0', 'S3 = 0', 'S4 = 0', `Jc = ${jc()}`, 'Jmin = 40', 'Jmax = 70', 'H1 = 1', 'H2 = 2', 'H3 = 3', 'H4 = 4', i1];
+    awg3Pairs().forEach(([a, , v]) => L.push(`${a} = ${v}`));
+    L.push('', '[Peer]', `PublicKey = ${account.peer_pub}`, `AllowedIPs = ${allowedIPs()}`, `Endpoint = ${endpoint()}`);
+    if (ka()) L.push(`PersistentKeepalive = ${ka()}`);
+    return { fileName: `WARPv${{ quic: 1, domain: 2, sip: 3 }[variant]}_${seed.num}.conf`, text: L.join('\n') + '\n' };
+  }
+  function buildWireSock() {
+    const L = ['[Interface]', `PrivateKey = ${account.privKey}`, `Address = ${addrs()}`, `DNS = ${dnsList().join(', ')}`, `MTU = ${mtu()}`,
+      'S1 = 0', 'S2 = 0', 'S3 = 0', 'S4 = 0', `Jc = ${jc()}`, 'Jmin = 40', 'Jmax = 70', 'H1 = 1', 'H2 = 2', 'H3 = 3', 'H4 = 4', '',
+      '# Protocol masking', `Id = ${$('w-domain').value.trim() || seed.domain}`, `Ip = ${$('w-wsIp').value}`, `Ib = ${$('w-wsIb').value}`,
+      '', '[Peer]', `PublicKey = ${account.peer_pub}`, `AllowedIPs = ${allowedIPs()}`, `Endpoint = ${endpoint()}`];
+    if (ka()) L.push(`PersistentKeepalive = ${ka()}`);
+    return { fileName: `WARPw_${seed.num}.conf`, text: L.join('\n') + '\n' };
+  }
+  function buildClash() {
+    const extra = awg3Pairs().map(([, c, v]) => `   ${c}: ${v === 'on' ? 'true' : v}`).join('\n');
+    const v6 = $('w-ipv6').checked;
+    const dns = dnsList();
+    const y = ['warp-common: &warp-common', '  type: wireguard', `  ip: ${account.client_ipv4}`];
+    if (v6) y.push(`  ipv6: ${account.client_ipv6}`);
+    y.push(`  private-key: ${account.privKey}`, `  public-key: ${account.peer_pub}`, "  allowed-ips: ['0.0.0.0/0']", '  udp: true', `  mtu: ${mtu()}`);
+    if (ka()) y.push(`  persistent-keepalive: ${ka()}`);
+    y.push('  remote-dns-resolve: true', `  dns: [${dns.join(', ')}]`, '', 'proxies:');
+    D.clash.forEach((is, n) => {
+      y.push(`- name: "Стандартный ${n + 1}"`, '  <<: *warp-common', '  server: 162.159.192.1', '  port: 4500', '  amnezia-wg-option:', '   version: 3', `   jc: ${jc()}`, '   jmin: 40', '   jmax: 70');
+      is.forEach((h, k) => y.push(`   i${k + 1}: ${h}`));
+      if (extra) y.push(extra);
+    });
+    y.push('', 'proxy-groups:', '- name: WARP', '  type: select', '  proxies:', '    - "Стандартный 1"', '    - "Стандартный 2"', '    - "Стандартный 3"',
+      "  url: 'http://speed.cloudflare.com/'", '  interval: 300', 'rules:', '- MATCH,WARP');
+    return { fileName: `ClashWARP_${seed.num}.yaml`, text: y.join('\n') + '\n' };
+  }
+  async function buildXray() {
+    const v6 = $('w-ipv6').checked;
+    let hex = seed.xray;
+    const dom = $('w-domain').value.trim();
+    if (dom) { const m = (await i1ForDomain(dom)).match(/0x([0-9a-f]+)/i); if (m) hex = m[1]; }
+    const sniff = { destOverride: ['http', 'tls'], enabled: true };
+    const peer = { allowedIPs: v6 ? ['0.0.0.0/0', '::/0'] : ['0.0.0.0/0'], endpoint: endpoint() };
+    if (ka()) peer.keepAlive = Number(ka());
+    peer.publicKey = account.peer_pub;
+    const noises = [{ delay: '1-2', packet: hex, type: 'hex' }];
+    for (let i = 0; i < (jc() ? 8 : 0); i++) noises.push({ delay: '1-3', packet: '23-911', type: 'rand' });
+    const cfg = {
+      dns: { servers: dnsList() },
+      inbounds: [
+        { listen: '127.0.0.1', port: 10808, protocol: 'socks', settings: { auth: 'noauth', udp: true }, sniffing: sniff, tag: 'socks-in' },
+        { listen: '127.0.0.1', port: 10809, protocol: 'http', settings: {}, sniffing: sniff, tag: 'http-in' },
+      ],
+      log: { loglevel: 'warning' }, meta: null,
+      outbounds: [
+        { protocol: 'wireguard', settings: { address: v6 ? [`${account.client_ipv4}/32`, `${account.client_ipv6}/128`] : [`${account.client_ipv4}/32`], mtu: Number(mtu()), peers: [peer], secretKey: account.privKey },
+          streamSettings: { sockopt: { dialerProxy: 'noise-out' } }, tag: 'warp' },
+        { protocol: 'freedom', settings: { domainStrategy: 'AsIs', noises }, tag: 'noise-out' },
+      ],
+      remarks: 'WARP',
+      routing: { domainStrategy: 'IPIfNonMatch', rules: [{ outboundTag: 'noise-out', port: '53', type: 'field' }, { network: 'tcp,udp', outboundTag: 'warp', type: 'field' }] },
+    };
+    return { fileName: `XrayWARP_${seed.num}.json`, text: JSON.stringify(cfg, null, 4) + '\n' };
+  }
+
+  async function render() {
+    if (!account || !seed) return;
+    const my = ++renderId;
+    try {
+      const f = radio('wfmt');
+      const res = f === 'awg' ? await buildAwg() : f === 'wiresock' ? buildWireSock() : f === 'clash' ? buildClash() : await buildXray();
+      if (my !== renderId) return;
+      outputs = [res];
+      $('w-out').value = res.text;
+      $('w-hint').textContent = '';
+    } catch (e) { outputs = []; $('w-out').value = ''; $('w-hint').textContent = String(e.message || e); }
+    $('w-save').disabled = $('w-copy').disabled = !outputs.length;
+  }
+
+  /* ---------- интерфейс ---------- */
+  function updateVisibility() {
+    const f = radio('wfmt');
+    $('w-varBox').classList.toggle('hidden', f !== 'awg');
+    $('w-domBox').classList.toggle('hidden', !(f === 'wiresock' || f === 'xray' || (f === 'awg' && radio('wvar') === 'domain')));
+    $('w-wsBox').classList.toggle('hidden', f !== 'wiresock');
+    $('w-awg3panel').classList.toggle('hidden', !(f === 'awg' || f === 'clash'));
+    $('w-splitPanel').classList.toggle('hidden', !(f === 'awg' || f === 'wiresock'));
+    $('w-awg3box').classList.toggle('hidden', !$('w-awg3').checked);
+    $('w-awg31box').classList.toggle('hidden', !$('w-awg31').checked);
+    $('w-ep').classList.toggle('hidden', $('w-epMode').value !== 'custom');
+    $('w-proxyBox').classList.toggle('hidden', !$('w-useProxy').checked);
+    const dpi = radio('wpx') === 'dpi';
+    $('w-proxy').classList.toggle('hidden', dpi);
+    $('w-dpiHint').classList.toggle('hidden', !dpi);
+    if (dpi && window.AppDpi) $('w-dpiHint').textContent = 'Будет запущен встроенный ByeDPI: ' + window.AppDpi.describe() + '. Стратегию можно подобрать на вкладке ByeDPI.';
+    const lan = $('w-nolan').checked;
+    document.querySelectorAll('#w-sites input').forEach(i => { i.disabled = lan; if (lan) i.checked = false; });
+  }
+  function setStatus() {
+    $('w-acc').textContent = account ? `Аккаунт получен · ${account.client_ipv4}` : 'Аккаунт ещё не создан';
+  }
+  async function generate() {
+    if (busy) return;
+    busy = true; $('w-gen').disabled = true; $('w-gen').textContent = 'Подождите…';
+    try {
+      if (!account) { account = await registerWarp(); setStatus(); }
+      seed = newSeed();
+      await render();
+      toast('Конфиг готов');
+    } catch (e) {
+      const msg = String(e.message || e);
+      const net = /Failed to fetch|NetworkError|Load failed|abort|timeout/i.test(msg);
+      $('w-hint').textContent = 'Ошибка: ' + (net ? 'нет связи с Cloudflare. Проверьте интернет (регистрация WARP работает только в приложении для Android и Windows) и повторите через пару минут.' : msg + (/^Укажите|только в приложении|ByeDPI|Движок/.test(msg) ? '' : ' — подождите несколько минут и повторите.'));
+      toast('Не удалось получить конфиг');
+    } finally { busy = false; $('w-gen').disabled = false; $('w-gen').textContent = 'Сгенерировать'; }
+  }
+
+  function init() {
+    $('w-dns').innerHTML = DNS.map(d => `<option value="${d[0]}">${d[1]}</option>`).join('');
+    $('w-sites').innerHTML = Object.keys(D.sites).map(k => `<label><input type="checkbox" id="w-site-${k}"><span>${SITE_NAMES[k] || k}</span></label>`).join('');
+    document.querySelectorAll('#view-warp input,#view-warp select').forEach(el => {
+      const h = () => { updateVisibility(); render(); };
+      el.addEventListener('input', h); el.addEventListener('change', h);
+    });
+    $('w-gen').onclick = generate;
+    $('w-newacc').onclick = () => { account = null; seed = null; outputs = []; $('w-out').value = ''; $('w-save').disabled = $('w-copy').disabled = true; setStatus(); toast('Аккаунт сброшен — будет создан новый'); };
+    $('w-rndAwg3').onclick = () => {
+      const r = (a, b, c, d) => `${rnd(a, b)}-${rnd(c, d)}`;
+      $('w-cpa').value = r(5, 49, 50, 110); $('w-mha').value = r(5, 24, 25, 40); $('w-kt').value = r(5, 10, 11, 25);
+      $('w-rat').value = r(50, 99, 100, 200); $('w-rkat').value = r(50, 99, 100, 150); $('w-rt').value = r(3, 9, 10, 15); render();
+    };
+    $('w-copy').onclick = async () => {
+      const t = $('w-out').value;
+      try { await navigator.clipboard.writeText(t); } catch { $('w-out').readOnly = false; $('w-out').select(); document.execCommand('copy'); $('w-out').readOnly = true; }
+      toast('Скопировано');
+    };
+    $('w-save').onclick = () => { if (outputs.length) AppSave(outputs, 'Конфиг WARP'); };
+    updateVisibility();
+  }
+  window.AppDpiChanged = updateVisibility;
+  init();
+})();
+
+})();
+</script>
+<script>
+(function(){
+(() => {
+  const $ = id => document.getElementById(id);
+  const toast = AppToast;
+
+  const STRATS = [
+    { id: 'none',   name: 'Без обхода (проверка)', args: '' },
+    { id: 's1',     name: 'Split по SNI', args: '--split 1+s' },
+    { id: 'd1',     name: 'Disorder по SNI', args: '--disorder 1+s' },
+    { id: 'tlsrec', name: 'TLS-record split', args: '--tlsrec 1+s' },
+    { id: 'sd',     name: 'Split + disorder', args: '--split 1+s --disorder 3+s' },
+    { id: 'dtr',    name: 'Disorder + TLS-record', args: '--disorder 1 --tlsrec 1+s' },
+    { id: 'multi',  name: 'Multi-split + TLS-record', args: '--split 1 --split 3+s --tlsrec 1+s' },
+    { id: 'oob',    name: 'OOB по SNI', args: '--oob 1+s' },
+    { id: 'doob',   name: 'Disorder OOB по SNI', args: '--disoob 1+s' },
+    { id: 'oobtr',  name: 'OOB + TLS-record', args: '--oob 3 --tlsrec 3+s' },
+    { id: 'f8',     name: 'Fake, TTL 8', args: '--fake -1 --ttl 8' },
+    { id: 'f5',     name: 'Fake, TTL 5', args: '--fake -1 --ttl 5' },
+    { id: 'f10tr',  name: 'Fake, TTL 10 + TLS-record', args: '--fake -1 --ttl 10 --tlsrec 1+s' },
+    { id: 'df',     name: 'Disorder + Fake', args: '--disorder 1 --fake -1 --ttl 8' },
+    { id: 'auto1',  name: 'Авто: disorder + TLS-record', args: '--disorder 1 --auto=torst --tlsrec 1+s' },
+    { id: 'auto2',  name: 'Авто: fake (ssl_err)', args: '--fake -1 --ttl 10 --auto=ssl_err --fake -1 --ttl 5' },
+    { id: 'md5',    name: 'Fake + md5sig (только Android)', args: '--fake -1 --md5sig', noWin: true },
+    { id: 'md5oob', name: 'OOB + Fake + md5sig (только Android)', args: '--oob 1 --fake -1 --md5sig', noWin: true },
+  ];
+  const TARGETS = [
+    { id: 'cf', name: 'Cloudflare API', url: 'https://api.cloudflareclient.com/', on: true },
+    { id: 'yt', name: 'YouTube', url: 'https://www.youtube.com/' },
+    { id: 'dc', name: 'Discord', url: 'https://discord.com/' },
+    { id: 'tg', name: 'Telegram Web', url: 'https://web.telegram.org/' },
+    { id: 'ig', name: 'Instagram', url: 'https://www.instagram.com/' },
+    { id: 'x',  name: 'X (Twitter)', url: 'https://x.com/' },
+  ];
+  const BAD_FLAG = /^(-i|--ip|-p|--port|-I|--conn-ip|-D|--daemon|-w|--pidfile|-E|--transparent|-H|--hosts|-j|--ipset)(=|$)/;
+  const OK_TOKEN = /^[-A-Za-z0-9_.,:+=@%]+$/;
+
+  function backend() {
+    if (window.warpBridge && window.warpBridge.dpi) {
+      const d = window.warpBridge.dpi;
+      return { win: true, available: () => d.available(), start: (a, p) => d.start(a, p), stop: () => d.stop(), probe: (u, p, t, r) => d.probe(u, p, t, r) };
+    }
+    const c = window.Capacitor;
+    if (c && c.isNativePlatform && c.isNativePlatform() && c.Plugins && c.Plugins.WarpHttp && c.Plugins.WarpHttp.dpiStart) {
+      const w = c.Plugins.WarpHttp;
+      return { win: false, available: async () => !!(await w.dpiAvailable()).available, start: (a, p) => w.dpiStart({ args: a, port: p }), stop: () => w.dpiStop(), probe: (u, p, t) => w.dpiProbe({ url: u, port: p, timeout: t }) };
+    }
+    return null;
+  }
+  const be = backend();
+
+  let present = false, running = null, aborted = false, searching = false;
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+
+  const list = () => STRATS.filter(s => !(s.noWin && be && be.win));
+  const port = () => { const n = parseInt($('d-port').value, 10); return n >= 1024 && n <= 65535 ? n : 1080; };
+  function parseArgs(str) {
+    const t = str.trim() ? str.trim().split(/\s+/) : [];
+    for (const x of t) {
+      if (!OK_TOKEN.test(x)) throw new Error(`Недопустимый параметр: ${x}`);
+      if (BAD_FLAG.test(x)) throw new Error(`Параметр ${x} задаётся приложением и не может быть изменён`);
+    }
+    return t;
+  }
+  const currentArgsStr = () => $('d-args').value.trim();
+
+  function setStatus() {
+    const st = $('d-status');
+    if (!be) { st.textContent = 'ByeDPI работает только в приложении для Android и Windows. В браузере доступен только просмотр стратегий.'; }
+    else if (!present) { st.textContent = 'Движок ByeDPI не вшит в эту сборку (не удалась сборка из исходников). Можно запустить ByeDPI отдельным приложением и указать его адрес (socks5://127.0.0.1:1080) как свой прокси на вкладке WARP.'; }
+    else if (running) { st.textContent = '● Запущен'; }
+    else { st.textContent = '○ Остановлен'; }
+    const can = !!be && present;
+    $('d-start').disabled = !can || searching;
+    $('d-start').textContent = running ? 'Перезапустить' : 'Запустить';
+    $('d-stop').disabled = !can || !running || searching;
+    $('d-search').disabled = !can || searching;
+    $('d-addr').textContent = running ? `Локальный прокси: socks5://127.0.0.1:${running.port}  ·  параметры: ${running.args || 'нет'}` : '';
+  }
+
+  async function start() {
+    const args = parseArgs(currentArgsStr());
+    const p = port();
+    if (running) await be.stop();
+    await be.start(args, p);
+    running = { port: p, args: currentArgsStr() };
+    store.set('dpi.port', String(p)); store.set('dpi.args', currentArgsStr());
+    setStatus();
+  }
+  async function stop() { if (be) { try { await be.stop(); } catch {} } running = null; setStatus(); }
+
+  /* ---------- автоподбор ---------- */
+  const row = (name, args) => {
+    const d = document.createElement('div'); d.className = 'dpi-row';
+    const a = document.createElement('div'); a.className = 'dpi-name'; a.textContent = name;
+    const b = document.createElement('div'); b.className = 'dpi-state'; b.textContent = '…';
+    d.append(a, b); d.title = args || '(без параметров)'; $('d-res').appendChild(d); return { d, b };
+  };
+  async function search() {
+    const targets = TARGETS.filter(t => $('d-t-' + t.id).checked);
+    if (!targets.length) { toast('Выберите хотя бы один сайт'); return; }
+    const timeout = parseInt($('d-timeout').value, 10);
+    const p = port();
+    const wasRunning = running;
+    searching = true; aborted = false; setStatus();
+    $('d-abort').classList.remove('hidden'); $('d-res').textContent = '';
+    if (running) { try { await be.stop(); } catch {} running = null; }
+    const results = [];
+    const strats = list();
+    try {
+      for (let i = 0; i < strats.length && !aborted; i++) {
+        const s = strats[i];
+        $('d-progress').textContent = `Проверка ${i + 1} из ${strats.length}: ${s.name}`;
+        const r = row(s.name, s.args);
+        let ok = 0, ms = 0, failed = '';
+        try {
+          await be.start(s.args ? s.args.split(' ') : [], p);
+          await new Promise(res => setTimeout(res, 200));
+          const rs = await Promise.all(targets.map(t => be.probe(t.url, p, timeout, `${Date.now()}-${i}`).catch(e => ({ ok: false, error: String(e && e.message || e) }))));
+          rs.forEach(x => { if (x && x.ok) { ok++; ms += x.ms || 0; } });
+          if (!ok) r.d.title += '\n' + ((rs.find(x => x && x.error) || {}).error || '');
+        } catch (e) { failed = String(e && e.message || e); }
+        try { await be.stop(); } catch {}
+        if (failed) { r.b.textContent = 'не запустилась'; r.d.classList.add('bad'); r.d.title += '\n' + failed; }
+        else if (ok) { const avg = Math.round(ms / ok); r.b.textContent = `${ok}/${targets.length} · ${avg} мс`; r.d.classList.add(ok === targets.length ? 'good' : 'part'); results.push({ s, ok, avg, row: r }); }
+        else { r.b.textContent = `0/${targets.length}`; r.d.classList.add('bad'); }
+      }
+    } finally {
+      searching = false; $('d-abort').classList.add('hidden');
+    }
+    // лучший: максимум успехов, затем минимальная задержка; «без обхода» не предлагаем, если он не единственный рабочий
+    const cand = results.slice().sort((a, b) => b.ok - a.ok || a.avg - b.avg);
+    const base = results.find(x => x.s.id === 'none');
+    if (aborted) $('d-progress').textContent = 'Подбор остановлен.';
+    else if (!cand.length) $('d-progress').textContent = 'Ни одна стратегия не сработала. Проверьте интернет или попробуйте другой набор сайтов.';
+    else {
+      const best = cand.find(x => x.s.id !== 'none' && (!base || x.ok > base.ok || (x.ok === base.ok && x.avg < base.avg * 0.8))) || cand[0];
+      best.row.d.classList.add('best');
+      $('d-strat').value = best.s.id; $('d-args').value = best.s.args; saveStrategy();
+      $('d-progress').textContent = best.s.id === 'none'
+        ? 'Сайты доступны и без обхода — стратегия не нужна.'
+        : `Лучшая стратегия: «${best.s.name}» (${best.ok}/${targets.length}). Она выбрана и сохранена.`;
+    }
+    if (wasRunning) { try { await start(); } catch (e) { toast(String(e.message || e)); } }
+    setStatus();
+  }
+
+  function saveStrategy() { store.set('dpi.strat', $('d-strat').value); store.set('dpi.args', currentArgsStr()); if (running) setStatus(); updateHint(); }
+  function updateHint() { if (window.AppDpiChanged) window.AppDpiChanged(); }
+
+  function init() {
+    $('d-strat').innerHTML = list().map(s => `<option value="${s.id}">${s.name}</option>`).join('') + '<option value="custom">Своя</option>';
+    $('d-targets').innerHTML = TARGETS.map(t => `<label><input type="checkbox" id="d-t-${t.id}"${t.on ? ' checked' : ''}><span>${t.name}</span></label>`).join('');
+    $('d-port').value = store.get('dpi.port', '') ;
+    const sid = store.get('dpi.strat', 's1'); const known = list().some(s => s.id === sid);
+    $('d-strat').value = known || sid === 'custom' ? sid : 's1';
+    const saved = store.get('dpi.args', null);
+    $('d-args').value = saved !== null && $('d-strat').value === 'custom' ? saved : (list().find(s => s.id === $('d-strat').value) || { args: '' }).args;
+    $('d-strat').onchange = () => { const s = list().find(x => x.id === $('d-strat').value); if (s) $('d-args').value = s.args; saveStrategy(); };
+    $('d-args').oninput = () => { const m = list().find(s => s.args === currentArgsStr()); $('d-strat').value = m ? m.id : 'custom'; saveStrategy(); };
+    $('d-start').onclick = async () => { try { await start(); toast('ByeDPI запущен'); } catch (e) { toast('Не удалось запустить: ' + (e.message || e)); setStatus(); } };
+    $('d-stop').onclick = async () => { await stop(); toast('ByeDPI остановлен'); };
+    $('d-search').onclick = () => search().catch(e => { searching = false; $('d-abort').classList.add('hidden'); $('d-progress').textContent = 'Ошибка: ' + (e.message || e); setStatus(); });
+    $('d-abort').onclick = () => { aborted = true; };
+    (async () => { try { present = !!be && await be.available(); } catch { present = false; } setStatus(); })();
+    setStatus();
+  }
+  init();
+
+  /* ---------- API для вкладки WARP ---------- */
+  window.AppDpi = {
+    describe() { const s = list().find(x => x.id === $('d-strat').value); return (s ? s.name : 'своя стратегия') + (currentArgsStr() ? ` (${currentArgsStr()})` : ''); },
+    async ensure() {
+      if (!be) throw new Error('ByeDPI доступен только в приложении для Android и Windows');
+      if (!present) throw new Error('Движок ByeDPI не вшит в эту сборку');
+      if (searching) throw new Error('Идёт подбор стратегии — дождитесь окончания');
+      const want = currentArgsStr();
+      if (!running || running.args !== want) await start();
+      return `socks5://127.0.0.1:${running.port}`;
+    },
+  };
+})();
+
+})();
+</script>
+<script>
+(function(){
+"use strict";
+const I1_PRESETS = ["<b 0xce000000010897a297ecc34cd6dd000044d0ec2e2e1ea2991f467ace4222129b5a098823784694b4897b9986ae0b7280135fa85e196d9ad980b150122129ce2a9379531b0fd3e871ca5fdb883c369832f730e272d7b8b74f393f9f0fa43f11e510ecb2219a52984410c204cf875585340c62238e14ad04dff382f2c200e0ee22fe743b9c6b8b043121c5710ec289f471c91ee414fca8b8be8419ae8ce7ffc53837f6ade262891895f3f4cecd31bc93ac5599e18e4f01b472362b8056c3172b513051f8322d1062997ef4a383b01706598d08d48c221d30e74c7ce000cdad36b706b1bf9b0607c32ec4b3203a4ee21ab64df336212b9758280803fcab14933b0e7ee1e04a7becce3e2633f4852585c567894a5f9efe9706a151b615856647e8b7dba69ab357b3982f554549bef9256111b2d67afde0b496f16962d4957ff654232aa9e845b61463908309cfd9de0a6abf5f425f577d7e5f6440652aa8da5f73588e82e9470f3b21b27b28c649506ae1a7f5f15b876f56abc4615f49911549b9bb39dd804fde182bd2dcec0c33bad9b138ca07d4a4a1650a2c2686acea05727e2a78962a840ae428f55627516e73c83dd8893b02358e81b524b4d99fda6df52b3a8d7a5291326e7ac9d773c5b43b8444554ef5aea104a738ed650aa979674bbed38da58ac29d87c29d387d80b526065baeb073ce65f075ccb56e47533aef357dceaa8293a523c5f6f790be90e4731123d3c6152a70576e90b4ab5bc5ead01576c68ab633ff7d36dcde2a0b2c68897e1acfc4d6483aaaeb635dd63c96b2b6a7a2bfe042f6aed82e5363aa850aace12ee3b1a93f30d8ab9537df483152a5527faca21efc9981b304f11fc95336f5b9637b174c5a0659e2b22e159a9fed4b8e93047371175b1d6d9cc8ab745f3b2281537d1c75fb9451871864efa5d184c38c185fd203de206751b92620f7c369e031d2041e152040920ac2c5ab5340bfc9d0561176abf10a147287ea90758575ac6a9f5ac9f390d0d5b23ee12af583383d994e22c0cf42383834bcd3ada1b3825a0664d8f3fb678261d57601ddf94a8a68a7c273a18c08aa99c7ad8c6c42eab67718843597ec9930457359dfdfbce024afc2dcf9348579a57d8d3490b2fa99f278f1c37d87dad9b221acd575192ffae1784f8e60ec7cee4068b6b988f0433d96d6a1b1865f4e155e9fe020279f434f3bf1bd117b717b92f6cd1cc9bea7d45978bcc3f24bda631a36910110a6ec06da35f8966c9279d130347594f13e9e07514fa370754d1424c0a1545c5070ef9fb2acd14233e8a50bfc5978b5bdf8bc1714731f798d21e2004117c61f2989dd44f0cf027b27d4019e81ed4b5c31db347c4a3a4d85048d7093cf16753d7b0d15e078f5c7a5205dc2f87e330a1f716738dce1c6180e9d02869b5546f1c4d2748f8c90d9693cba4e0079297d22fd61402dea32ff0eb69ebd65a5d0b687d87e3a8b2c42b648aa723c7c7daf37abcc4bb85caea2ee8f55bec20e913b3324ab8f5c3304f820d42ad1b9f2ffc1a3af9927136b4419e1e579ab4c2ae3c776d293d397d575df181e6cae0a4ada5d67ecea171cca3288d57c7bbdaee3befe745fb7d634f70386d873b90c4d6c6596bb65af68f9e5121e67ebf0d89d3c909ceedfb32ce9575a7758ff080724e1ab5d5f43074ecb53a479af21ed03d7b6899c36631c0166f9d47e5e1d4528a5d3d3f744029c4b1c190cbfbad06f5f83f7ad0429fa9a2719c56ffe3783460e166de2d8>", "<b 0xca000000010192000040523d20151ea578688a48502d1b7d5ae46906ceb14547fec9aee98a407dab61b229ca5f6707be89c159f3cf9b73a3b8d906f7d3e307f8e39fdb0d35b23c0ffc635d285418cea8bfd98009d234e0e4f95891a7f4>", "<b 0xcd00000001019500004050389e9d50b54adf3d7b201298e06ddc84decc476cbaae7f5caa99df689a3d8bc8cdf4f1d328ca82147d4afbcd607f76c4ec72dcfa3831afb10b2469557a604f9bfc70d78c149fc6fbc2217d7b1ff6166e>", "<b 0xc400000001015c000040570b2e25e1a2fb2e1d5cf2bfdaeb0ca79c3255f6384628e6e6c22adb43440db63fa1d26ad16120d9cbdbf0dc2f7a8eb3525561b193c6b6a0ef44e8d118c3b04a3ae880c081a9b9e97321315915787938abd8b925506b830d>", "<b 0xc70000000101eb00004055988000e4d3995e7951b41d23dbb150e211e82942d2acbfc4b0596a070887a0e75c6e9e125b838da7e42a511b381741c47bb784a497a0a47327046ce4e2007d611c6c119779f0f2e340d5d6c4525a87754d7c997c09>", "<b 0xcb0000000101d6000040500195593d5d325e28e7a9d879ff474b9a1a344d76a202d92776ceaee0e7f8d933ded8bc2f49a31d19cfa2f42a8b6e056c76c4d64b4f09d870f342e0872e69f5486b4e35e32314107a3937b8d3cf14cfc8>"];
+const DOMAINS = ["175bru.ru", "1tv.ru", "2an.ru", "2gis.ru", "360tv.ru", "4ege.ru", "5-tv.ru", "9111.ru", "akbars.ru", "allhockey.ru", "amalgama-lab.com", "apteka.ru", "aptekamos.ru", "arbitr.ru", "arhangelskoe.su", "artchive.ru", "arzamas.academy", "asna.ru", "ati.su", "autonews.ru", "av.ru", "avtovzglyad.ru", "baby.ru", "babyblog.ru", "bashinform.ru", "bbr.ru", "beeline.ru", "belkacar.ru", "blizko.ru", "bolshoi.ru", "borodino.ru", "bspb.ru", "c2dns.net", "c2dns.ru", "cdek.ru", "championat.com", "chitalnya.ru", "consmed.ru", "consultant.ru", "cosmo.ru", "ctc.ru", "culture.ru", "dalenabank.ru", "datalesson.ru", "deepseek.com", "delimobil.ru", "delivery-club.ru", "dellin.ru", "dixy.ru", "dnevnik.ru", "dns-shop.ru", "docdoc.ru", "doctis.ru", "domashniy.ru", "doverie-tv.ru", "dzen.ru", "e-katalog.ru", "eapteka.ru", "edadeal.ru", "edimdoma.ru", "edu.ru", "elibrary.ru", "f1news.ru", "fantlab.ru", "fedsfm.ru", "fighttime.ru", "filmpro.ru", "fipi.ru", "fips.ru", "fitseven.ru", "forumhouse.ru", "foxford.ru", "friday.ru", "fsb.ru", "fss.ru", "fssprus.ru", "garant.ru", "gaso.ru", "gismeteo.ru", "gks.ru", "gosfilmofond.ru", "goskatalog.ru", "habr.ru", "health-diet.ru", "hermitagemuseum.org", "hi-news.ru", "histrf.ru", "ilibrary.ru", "in-space.ru", "indicator.ru", "infourok.ru", "interneturok.ru", "invb.ru", "irecommend.ru", "is74.ru", "ivi.ru", "joomag.com", "jv.ru", "karcher.ru", "kartaslov.ru", "karusel-tv.ru", "khl.ru", "kinopoisk.ru", "knigogid.ru", "kodeks.ru", "kolesa.ru", "kommersant.ru", "kopilkaurokov.ru", "kp.ru", "kreml.ru", "lektorium.tv", "letidor.ru", "lib.ru", "linkgroup.ru", "litres.ru", "livejournal.com", "livelib.ru", "livesport.ru", "lizaalert.org", "m24.ru", "maam.ru", "magnit.ru", "mail.ru", "mariinsky.ru", "matchtv.ru", "med-otzyv.ru", "medi.ru", "mediametrics.ru", "medicalinsider.ru", "medihost.ru", "medikforum.ru", "medlinks.ru", "medportal.ru", "medside.ru", "megafon.ru", "mel.fm", "mirtesen.ru", "mirtv.ru", "mkala.ru", "mob-edu.ru", "moluch.ru", "moskb.ru", "mts.ru", "multiurok.ru", "mybook.ru", "myskills.ru", "naked-science.ru", "nat-geo.ru", "nauchniestati.ru", "netology.ru", "nevasport.ru", "nic.ru", "nkj.ru", "nplus1.ru", "nskbl.ru", "nsportal.ru", "ntv.ru", "nukadeti.ru", "obrazovaka.ru", "ohotniki.ru", "olimpiada.ru", "onlinedoctor.ru", "onlinetrade.ru", "oprf.ru", "otr-online.ru", "otzovik.com", "oum.ru", "ped-kopilka.ru", "pedsovet.org", "pervbank.ru", "pikabu.ru", "pochtabank.ru", "popmech.ru", "postupi.online", "povar.ru", "professionali.ru", "profi.ru", "proza.ru", "psbank.ru", "pypi.org", "radiomayak.ru", "radiorus.ru", "radiovesti.ru", "rbc.ru", "ren.tv", "rgo.ru", "ria.ru", "rlsnet.ru", "rosbank.ru", "rosreestr.ru", "rosuchebnik.ru", "rsl.ru", "rt.ru", "rulit.me", "rusarchives.ru", "rusmuseum.ru", "rusneb.ru", "russkiiyazyk.ru", "rustih.ru", "rutube.ru", "samlib.ru", "sdamgia.ru", "selfpub.ru", "shm.ru", "sirius.online", "skyeng.ru", "sledcom.ru", "sm-news.ru", "smi2.ru", "smotrim.ru", "soccer.ru", "sovcombank.ru", "sovsport.ru", "spastv.ru", "sport24.ru", "sportmail.ru", "sportrbc.ru", "sportsdaily.ru", "stihi.ru", "sudact.ru", "sudrf.ru", "tamtam.chat", "tatar-inform.ru", "tele2.ru", "teleprogramma.pro", "tiu.ru", "tnt-online.ru", "tretyakovgallery.ru", "trudvsem.ru", "tv3.ru", "tvc.ru", "tvkultura.ru", "tvzvezda.ru", "ucheba.ru", "uchi.ru", "uchportal.ru", "unicreditbank.ru", "ura.news", "uteka.ru", "utkonos.ru", "vbr.ru", "verumreactor.ru", "vesti.ru", "vgtrk.ru", "videouroki.net", "vitrina.tv", "vk.ru", "vkvideo.ru", "vm.ru", "vokrugsveta.ru", "vrachirf.ru", "vsrf.ru", "webinar.ru", "wi-fi.ru", "wikireading.ru", "woman.ru", "worldskills.ru", "xn--80aesfpebagmfblc0a.xn--p1ai", "xn--80afcdbalict6afooklqi5o.xn--p1ai", "xn--j1ahfl.xn--p1ai", "xn----7sbb5adknde1cb0dyd.xn--p1ai", "xn--2020-f4dsa7cb5cl7h.xn--p1ai", "yaklass.ru", "youdo.com", "youla.ru", "zakon.ru", "zdorovie.ru", "zdorovieinfo.ru", "znaika.ru", "zoon.ru"];
+const NOLAN_IPS = "1.0.0.0/8, 2.0.0.0/7, 4.0.0.0/6, 8.0.0.0/7, 11.0.0.0/8, 12.0.0.0/6, 16.0.0.0/4, 32.0.0.0/3, 64.0.0.0/3, 96.0.0.0/4, 112.0.0.0/5, 120.0.0.0/6, 124.0.0.0/7, 126.0.0.0/8, 128.0.0.0/3, 160.0.0.0/5, 168.0.0.0/8, 169.0.0.0/9, 169.128.0.0/10, 169.192.0.0/11, 169.224.0.0/12, 169.240.0.0/13, 169.248.0.0/14, 169.252.0.0/15, 169.255.0.0/16, 170.0.0.0/7, 172.0.0.0/12, 172.32.0.0/11, 172.64.0.0/10, 172.128.0.0/9, 173.0.0.0/8, 174.0.0.0/7, 176.0.0.0/4, 192.0.0.0/9, 192.128.0.0/11, 192.160.0.0/13, 192.169.0.0/16, 192.170.0.0/15, 192.172.0.0/14, 192.176.0.0/12, 192.192.0.0/10, 193.0.0.0/8, 194.0.0.0/7, 196.0.0.0/6, 200.0.0.0/5, 208.0.0.0/4, 224.0.0.0/4, ::/1, 8000::/2, c000::/3, e000::/4, f000::/5, f800::/6, fe00::/9, fec0::/10, ff00::/8";
+const PORTS = [80, 88, 443, 500, 1194, 1224, 4500, 4569, 5060, 51820];
+const COUNTRY = {JP:'🇯🇵',US:'🇺🇸',NL:'🇳🇱',DE:'🇩🇪',FR:'🇫🇷',GB:'🇬🇧',CA:'🇨🇦',AU:'🇦🇺',RO:'🇷🇴',MX:'🇲🇽',NO:'🇳🇴',SG:'🇸🇬',CH:'🇨🇭',PL:'🇵🇱'};
+const AWG_KEYS = ['jc','jmin','jmax','s1','s2','h1','h2','h3','h4'];
+
+const $ = id => document.getElementById(id);
+const val = (id, fb='') => { const e=$(id); return (e.value.trim() || e.placeholder || fb); };
+const radio = name => document.querySelector(`input[name="${name}"]:checked`).value;
+const rnd = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+
+let sources = [];   // {name, text}
+let proxies = [];   // parsed
+let outputs = [];   // [{fileName, text}]
+
+/* ---------- parsing ---------- */
+function parseWG(text){
+  const cfg = {iface:{awg:{}}, peers:[]};
+  let sec = null, pi = -1;
+  const lines = text.split(/\r?\n/);
+  for (let i=0;i<lines.length;i++){
+    const line = lines[i].trim();
+    if (!line) continue;
+    if (line.startsWith('[') && line.endsWith(']')){
+      sec = line.slice(1,-1).toLowerCase();
+      if (sec==='peer'){
+        pi++; cfg.peers.push({awg:{}});
+        const nxt = (lines[i+1]||'').trim().match(/^#\s*(.+)/);
+        if (nxt){ cfg.peers[pi].name = nxt[1].trim(); i++; }
+      }
+      continue;
+    }
+    if (line.startsWith('#')){
+      // Комментарий с именем сервера перед/внутри секции
+      if (sec==='interface' && !cfg.iface.comment) cfg.iface.comment = line.replace(/^#\s*/,'');
+      continue;
+    }
+    const eq = line.indexOf('='); if (eq<0) continue;
+    const k = line.slice(0,eq).trim().toLowerCase();
+    const v = line.slice(eq+1).trim();
+    if (sec==='interface'){ AWG_KEYS.includes(k) ? cfg.iface.awg[k]=v : cfg.iface[k]=v; }
+    else if (sec==='peer' && pi>=0){ AWG_KEYS.includes(k) ? cfg.peers[pi].awg[k]=v : cfg.peers[pi][k]=v; }
+  }
+  if (cfg.peers.length && !cfg.peers[0].name){
+    const m = text.match(/#\s*([A-Z]{2}-FREE#?\d+)/);
+    if (m) cfg.peers[0].name = m[1];
+  }
+  return cfg;
+}
+
+function junkDefaults(){
+  const m = radio('junk');
+  let jc, jmin, jmax;
+  if (m==='1'){ jc=3; jmin=1; jmax=3; }
+  else if (m==='2'){ jc=30; jmin=10; jmax=30; }
+  else {
+    jc = parseInt($('jc').value) || 128;
+    jmin = parseInt($('jmin').value) || 1279;
+    jmax = parseInt($('jmax').value) || 1280;
+  }
+  if (jmax <= jmin) jmax = jmin + 1;
+  return {jc, jmin, jmax, s1:0, s2:0, h1:1, h2:2, h3:3, h4:4};
+}
+
+function toProxy(cfg, fileName){
+  const I = cfg.iface, P = cfg.peers[0];
+  if (!P) throw new Error('нет секции [Peer]');
+  for (const [obj,k,label] of [[I,'privatekey','PrivateKey'],[I,'address','Address'],[P,'publickey','PublicKey'],[P,'endpoint','Endpoint'],[P,'allowedips','AllowedIPs']])
+    if (!obj[k]) throw new Error(`нет поля ${label}`);
+  const def = junkDefaults();
+  const awg = {};
+  for (const k of AWG_KEYS) awg[k] = I.awg[k] || P.awg[k] || def[k];
+  if ($('noJunk').checked) awg.jc = 0;   // без мусорных пакетов
+  const orig = P.name || fileName.replace(/\.conf$/i,'');
+  let name = orig.replace(/FREE#?/g,'').replace(/-$/,'');
+  const fm = name.match(/^([A-Z]{2})[-_]/);
+  if (fm && COUNTRY[fm[1]]) name = name.replace(fm[1], `${COUNTRY[fm[1]]} ${fm[1]}`);
+  const addrs = I.address.split(',').map(s=>s.trim());
+  const ep = P.endpoint.trim();
+  const host = ep.startsWith('[') ? ep.slice(1, ep.indexOf(']')) : ep.slice(0, ep.lastIndexOf(':'));
+  return {
+    name, orig, host,
+    priv: I.privatekey, pub: P.publickey, psk: P.presharedkey || '',
+    address: I.address, ipv4: addrs.find(a=>!a.includes(':'))||'', ipv6: addrs.find(a=>a.includes(':'))||'',
+    dns: I.dns ? I.dns.split(',').map(s=>s.trim()) : [],
+    allowed: P.allowedips.split(',').map(s=>s.trim()),
+    awg
+  };
+}
+
+/* ---------- generation ---------- */
+function opts(){
+  const kaOn = $('useKa').checked;
+  return {
+    fmt: radio('fmt'),
+    port: document.querySelector('input[name="port"]:checked').value,
+    mtu: val('mtu','1420'),
+    ka: kaOn ? val('ka','25') : '',
+    nolan: $('nolan').checked && !['clash','xray'].includes(radio('fmt')),
+    awg3: $('awg3').checked,
+    awg31: $('awg31').checked,
+    i: [1,2,3,4,5].map(n=>$('i'+n).value.trim()),
+  };
+}
+function awg3Values(){
+  return {cpa:val('cpa'), rkat:val('rkat'), rt:val('rt'), rat:val('rat'), kt:val('kt'), mha:val('mha')};
+}
+
+function buildConf(p, o){
+  const L = [];
+  L.push(`# ${p.orig || 'Безымянный конфиг'}`, '[Interface]', `PrivateKey = ${p.priv}`, `Address = ${p.address}`);
+  if (p.dns.length) L.push(`DNS = ${p.dns.join(', ')}`);
+  L.push(`MTU = ${o.mtu}`);
+  const a = p.awg;
+  L.push('S1 = 0','S2 = 0',`Jc = ${a.jc}`,`Jmin = ${a.jmin}`,`Jmax = ${a.jmax}`,`H1 = ${a.h1}`,`H2 = ${a.h2}`,`H3 = ${a.h3}`,`H4 = ${a.h4}`);
+  if (o.fmt==='awg'){
+    L.push(`I1 = ${o.i[0] || I1_PRESETS[0]}`);
+    o.i.slice(1).forEach((v,n)=>{ if (v) L.push(`I${n+2} = ${v}`); });
+  }
+  if (o.fmt==='wiresock'){
+    L.push(`Id = ${val('wsId','apteka.ru')}`, `Ip = ${$('wsIp').value}`, `Ib = ${$('wsIb').value}`);
+  }
+  if (o.awg3){
+    const v = awg3Values();
+    if (v.cpa)  L.push(`ContentPaddingAddition = ${v.cpa}`);
+    if (v.rkat) L.push(`RekeyAfterTime = ${v.rkat}`);
+    if (v.rt)   L.push(`RekeyTimeout = ${v.rt}`);
+    if (v.rat)  L.push(`RejectAfterTime = ${v.rat}`);
+    if (v.kt)   L.push(`KeepaliveTimeout = ${v.kt}`);
+    if (v.mha)  L.push(`MaxHandshakeAttempts = ${v.mha}`);
+  }
+  if (o.awg31) L.push('DisableCookies = on');
+  L.push('', '[Peer]', `PublicKey = ${p.pub}`);
+  if (p.psk) L.push(`PresharedKey = ${p.psk}`);
+  L.push(`AllowedIPs = ${o.nolan ? NOLAN_IPS : p.allowed.join(', ')}`);
+  L.push(`Endpoint = ${p.host.includes(':') ? '['+p.host+']' : p.host}:${o.port}`);
+  if (o.ka) L.push(`PersistentKeepalive = ${o.ka}`);
+  return L.join('\n') + '\n';
+}
+
+function buildClash(list, o){
+  const y = ['proxies:'];
+  for (const p of list){
+    y.push(`- name: ${p.name}`, '  type: wireguard', `  server: ${p.host}`, `  port: ${o.port}`, `  ip: ${p.ipv4}`);
+    if (p.ipv6) y.push(`  ipv6: ${p.ipv6}`);
+    y.push(`  private-key: ${p.priv}`, `  public-key: ${p.pub}`, `  allowed-ips: [${p.allowed.map(x=>`'${x}'`).join(', ')}]`);
+    if (p.psk) y.push(`  pre-shared-key: ${p.psk}`);
+    if (o.ka) y.push(`  persistent-keepalive: ${o.ka}`);
+    y.push('  udp: true', `  mtu: ${o.mtu}`, '  remote-dns-resolve: true', `  dns: [${p.dns.join(', ')}]`, '  amnezia-wg-option:', '    version: 3');
+    for (const [k,v] of Object.entries(p.awg)) y.push(`    ${k}: ${v}`);
+    y.push(`    i1: ${o.i[0] || I1_PRESETS[0]}`);
+    o.i.slice(1).forEach((v,n)=>{ if (v) y.push(`    i${n+2}: ${v}`); });
+    if (o.awg3){
+      const v = awg3Values();
+      if (v.cpa)  y.push(`    content-padding-addition: ${v.cpa}`);
+      if (v.rkat) y.push(`    rekey-after-time: ${v.rkat}`);
+      if (v.rt)   y.push(`    rekey-timeout: ${v.rt}`);
+      if (v.rat)  y.push(`    reject-after-time: ${v.rat}`);
+      if (v.kt)   y.push(`    keepalive-timeout: ${v.kt}`);
+      if (v.mha)  y.push(`    max-handshake-attempts: ${v.mha}`);
+    }
+    if (o.awg31) y.push('    disable-cookies: true');
+    y.push('');
+  }
+  const proton = [], other = [];
+  for (const p of list) (/(^|[_-])([A-Z]{2})([-_]FREE)?([#_-]|$)/i.test(p.orig) ? proton : other).push(p.name);
+  y.push('proxy-groups:');
+  const grp = (n, arr) => { if (arr.length) y.push(`- name: ${n}`, '  type: select', '  proxies:', ...arr.map(x=>`    - ${x}`), "  url: 'http://speed.cloudflare.com/'", '  unified-delay: true', '  interval: 300'); };
+  grp('Proton', proton); grp('Other', other);
+  return y.join('\n') + '\n';
+}
+
+
+function buildXray(p, o){
+  const hex = ((o.i[0] || I1_PRESETS[0]).match(/0x([0-9a-fA-F]+)/) || [,''])[1];
+  const noises = [{delay:'1-2', packet:hex, type:'hex'}];
+  for (let n=0; n<(parseInt(p.awg.jc)||0); n++) noises.push({delay:'1-3', packet:`${p.awg.jmin}-${p.awg.jmax}`, type:'rand'});
+  const sniff = {destOverride:['http','tls'], enabled:true};
+  const peer = {allowedIPs: p.allowed};
+  if (p.psk) peer.preSharedKey = p.psk;
+  peer.endpoint = `${p.host.includes(':') ? '['+p.host+']' : p.host}:${o.port}`;
+  if (o.ka) peer.keepAlive = Number(o.ka);
+  peer.publicKey = p.pub;
+  const cfg = {
+    dns: {servers: p.dns.length ? p.dns : ['1.1.1.1','1.0.0.1']},
+    inbounds: [
+      {listen:'127.0.0.1', port:10808, protocol:'socks', settings:{auth:'noauth', udp:true}, sniffing:sniff, tag:'socks-in'},
+      {listen:'127.0.0.1', port:10809, protocol:'http', settings:{}, sniffing:sniff, tag:'http-in'},
+    ],
+    log: {loglevel:'warning'}, meta: null,
+    outbounds: [
+      {protocol:'wireguard', settings:{address: p.address.split(',').map(a=>a.trim()), mtu:Number(o.mtu), peers:[peer], secretKey:p.priv},
+       streamSettings:{sockopt:{dialerProxy:'noise-out'}}, tag:'proton'},
+      {protocol:'freedom', settings:{domainStrategy:'AsIs', noises}, tag:'noise-out'},
+    ],
+    remarks: (p.orig||'Proton').replace(/-FREE/g,'').replace(/[^a-z0-9]/gi,'_'),
+    routing: {domainStrategy:'AsIs', rules:[{network:'tcp,udp', outboundTag:'proton', type:'field'}]},
+  };
+  return JSON.stringify(cfg, null, 4) + '\n';
+}
+
+function fileNameFor(p, idx, ext='conf'){
+  const base = (p.orig||'').replace(/-FREE/g,'').replace(/[^a-z0-9]/gi,'_').replace(/_+/g,'_').replace(/^_|_$/g,'');
+  return base ? `${base}.${ext}` : `config_${idx+1}.${ext}`;
+}
+
+function regenerate(){
+  proxies = []; outputs = [];
+  const errs = [];
+  sources.forEach(s=>{
+    try { proxies.push(toProxy(parseWG(s.text), s.name)); }
+    catch(e){ errs.push(`${s.name}: ${e.message}`); }
+  });
+  const o = opts();
+  if (proxies.length){
+    if (o.fmt==='clash'){
+      outputs = [{fileName:'clash-config.yaml', text: buildClash(proxies, o)}];
+    } else {
+      const used = new Set();
+      outputs = proxies.map((p,i)=>{
+        const ext = o.fmt==='xray' ? 'json' : 'conf';
+        let n = fileNameFor(p,i,ext); while (used.has(n)) n = n.replace(/(\.\w+)$/, `_${i}$1`); used.add(n);
+        return {fileName:n, text: o.fmt==='xray' ? buildXray(p,o) : buildConf(p,o)};
+      });
+    }
+  }
+  $('out').value = outputs.length === 1 ? outputs[0].text
+    : outputs.map(x=>`### ${x.fileName}\n${x.text}`).join('\n');
+  $('save').disabled = $('copy').disabled = !outputs.length;
+  $('saveHint').textContent = errs.length ? 'Пропущено: ' + errs.join('; ')
+    : outputs.length > 1 && o.fmt!=='clash' ? `Будет сохранено файлов: ${outputs.length}` : '';
+  const f = $('files');
+  f.textContent = sources.length ? sources.map(s=>s.name).join(', ') : 'Файлы не выбраны';
+}
+
+/* ---------- UI wiring ---------- */
+const toast = AppToast;
+
+function updateVisibility(){
+  const f = radio('fmt');
+  $('p-awg2').classList.toggle('hidden', f==='wiresock');
+  $('p-ws').classList.toggle('hidden', f!=='wiresock');
+  $('nolanRow').classList.toggle('hidden', f==='clash' || f==='xray');
+  $('p-awg3').classList.toggle('hidden', f==='xray');
+  $('i2-5').classList.toggle('hidden', f==='xray');
+  $('awg3box').classList.toggle('hidden', !$('awg3').checked);
+}
+
+function init(){
+  $('ports').innerHTML = PORTS.map(p=>`<label><input type="radio" name="port" value="${p}"${p===51820?' checked':''}><span>${p}</span></label>`).join('');
+  document.querySelectorAll('#view-proton input,#view-proton select,#view-proton textarea').forEach(el=>{
+    if (el.id==='file' || el.id==='domain' || el.id==='pasteText' || el.id==='out') return;
+    const h = ()=>{ if (el.name==='fmt' && el.value==='xray'){ $('jc').value=5; $('jmin').value=40; $('jmax').value=70; document.querySelector('input[name=junk][value="3"]').checked = true; } if (el.name==='fmt'||el.id==='awg3') updateVisibility(); if (el.id==='jc'||el.id==='jmin'||el.id==='jmax') document.querySelector('input[name=junk][value="3"]').checked = true; regenerate(); };
+    el.addEventListener('input', h); el.addEventListener('change', h);
+  });
+
+  $('pick').onclick = ()=>$('file').click();
+  $('file').onchange = async e=>{
+    const fl = Array.from(e.target.files);
+    sources = [];
+    for (const f of fl) { try { sources.push({name:f.name, text: await f.text()}); } catch(err) { alert('Не удалось прочитать файл: '+f.name); } }
+    e.target.value = '';
+    regenerate();
+  };
+  $('paste').onclick = ()=>$('dlgPaste').showModal();
+  $('dlgPaste').addEventListener('close', ()=>{
+    if ($('dlgPaste').returnValue==='ok' && $('pasteText').value.trim()){
+      sources.push({name:`pasted_${sources.length+1}.conf`, text:$('pasteText').value});
+      $('pasteText').value=''; regenerate();
+    }
+  });
+
+  $('rndJunk').onclick = ()=>{
+    const jc = rnd(1,100), jmin = rnd(1,200), jmax = rnd(jmin+1,201);
+    $('jc').value=jc; $('jmin').value=jmin; $('jmax').value=jmax;
+    document.querySelector('input[name=junk][value="3"]').checked = true; regenerate();
+  };
+  $('rndI').onclick = ()=>{ $('i1').value = pick(I1_PRESETS); [2,3,4,5].forEach(n=>$('i'+n).value=''); regenerate(); };
+  $('rndWs').onclick = ()=>{ $('wsId').value = pick(DOMAINS); regenerate(); };
+  $('rndAwg3').onclick = ()=>{
+    const r = (a,b,c,d)=>`${rnd(a,b)}-${rnd(c,d)}`;
+    $('cpa').value=r(5,49,50,110); $('mha').value=r(5,24,25,40); $('kt').value=r(5,10,11,25);
+    $('rat').value=r(50,99,100,200); $('rkat').value=r(50,99,100,150); $('rt').value=r(3,9,10,15);
+    regenerate();
+  };
+  $('genI').onclick = ()=>$('dlgDomain').showModal();
+  $('dlgDomain').addEventListener('close', async ()=>{
+    if ($('dlgDomain').returnValue!=='ok') return;
+    const d = $('domain').value.trim();
+    if (!d) return toast('Введите домен');
+    const v = await window.generateI1FromDomain(d);
+    if (!v) return toast('Не удалось сгенерировать I1');
+    $('i1').value = v; [2,3,4,5].forEach(n=>$('i'+n).value=''); regenerate();
+  });
+
+  $('copy').onclick = async ()=>{
+    const text = $('out').value;
+    try { await navigator.clipboard.writeText(text); }
+    catch { $('out').readOnly=false; $('out').select(); document.execCommand('copy'); $('out').readOnly=true; }
+    toast('Скопировано');
+  };
+  $('save').onclick = saveFiles;
+  updateVisibility(); regenerate();
+}
+
+async function saveFiles(){ if (outputs.length) AppSave(outputs, 'Конфиг AmneziaWG'); }
+
+init();
+
+})();
+</script>
+</body>
+</html>

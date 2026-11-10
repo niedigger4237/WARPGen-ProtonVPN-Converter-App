@@ -1,0 +1,63 @@
+{
+  "name": "warp-proton-awg",
+  "productName": "WARP + Proton AWG",
+  "version": "2.1.0",
+  "description": "WARP-генератор и Proton → AmneziaWG конвертер для Android и Windows",
+  "main": "electron/main.js",
+  "author": "local",
+  "license": "MIT",
+  "scripts": {
+    "build:web": "python3 tools/build.py",
+    "start": "electron .",
+    "dist:win": "electron-builder --win portable nsis --x64 --publish never",
+    "android:init": "cap add android && cap sync android",
+    "android:sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/filesystem": "^7.0.0",
+    "@capacitor/share": "^7.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.0",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.local.protonawg",
+    "productName": "WARP + Proton AWG",
+    "files": [
+      "electron/**",
+      "www/**",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ],
+      "icon": "assets/icon.png"
+    },
+    "portable": {
+      "artifactName": "WarpProtonAWG-portable-${version}.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "WarpProtonAWG-setup-${version}.exe"
+    },
+    "extraResources": [
+      {
+        "from": "byedpi-bin",
+        "to": "byedpi",
+        "filter": [
+          "ciadpi.exe"
+        ]
+      }
+    ]
+  }
+}

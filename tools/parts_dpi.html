@@ -1,0 +1,42 @@
+<div class="grid">
+  <section class="panel span2">
+    <h2>Встроенный ByeDPI</h2>
+    <p class="hint" id="d-status" style="margin:0 0 10px">Проверка…</p>
+    <div class="row">
+      <label class="f">Порт SOCKS5<input type="number" id="d-port" placeholder="1080" min="1024" max="65535"></label>
+    </div>
+    <div class="row">
+      <button id="d-start">Запустить</button>
+      <button id="d-stop" class="ghost" disabled>Остановить</button>
+    </div>
+    <p class="hint" id="d-addr"></p>
+  </section>
+
+  <section class="panel span2">
+    <h2>Стратегия</h2>
+    <label class="f w">Готовые стратегии
+      <select id="d-strat"></select>
+    </label>
+    <label class="f w" style="margin-top:8px">Параметры командной строки (можно править)
+      <textarea id="d-args" rows="2" spellcheck="false" placeholder="--split 1+s --disorder 3+s"></textarea>
+    </label>
+    <p class="hint">Если параметры отредактированы вручную, они используются вместо выбранной стратегии. Если стратегия не помогает — воспользуйтесь автоподбором ниже.</p>
+  </section>
+
+  <section class="panel span2">
+    <h2>Автоподбор стратегии</h2>
+    <p class="hint" style="margin:0 0 8px">Что проверять (стратегия засчитывается, если сайт отвечает по HTTPS):</p>
+    <div class="ports" id="d-targets"></div>
+    <div class="row" style="margin-top:10px">
+      <label class="f">Таймаут на сайт
+        <select id="d-timeout"><option value="4000">4 с</option><option value="6000" selected>6 с</option><option value="10000">10 с</option></select>
+      </label>
+    </div>
+    <div class="row">
+      <button id="d-search">Подобрать</button>
+      <button id="d-abort" class="ghost hidden">Остановить подбор</button>
+    </div>
+    <p class="hint" id="d-progress"></p>
+    <div id="d-res" class="dpi-res"></div>
+  </section>
+</div>

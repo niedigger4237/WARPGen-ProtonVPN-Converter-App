@@ -1,0 +1,100 @@
+<div class="grid">
+  <section class="panel">
+    <h2>Формат</h2>
+    <div class="seg four" role="radiogroup" aria-label="Формат WARP">
+      <label><input type="radio" name="wfmt" value="awg" checked><span>AmneziaWG</span></label>
+      <label><input type="radio" name="wfmt" value="wiresock"><span>WireSock</span></label>
+      <label><input type="radio" name="wfmt" value="clash"><span>Clash</span></label>
+      <label><input type="radio" name="wfmt" value="xray"><span>Xray</span></label>
+    </div>
+    <div id="w-varBox">
+      <h2 style="margin-top:16px">Вариант маскировки (AWG 2.0)</h2>
+      <div class="seg" role="radiogroup" aria-label="Вариант">
+        <label><input type="radio" name="wvar" value="quic" checked><span>1 · QUIC</span></label>
+        <label><input type="radio" name="wvar" value="domain"><span>2 · QUIC + домен</span></label>
+        <label><input type="radio" name="wvar" value="sip"><span>3 · SIP</span></label>
+      </div>
+    </div>
+    <div id="w-domBox" class="row">
+      <label class="f w">Домен для имитации (SNI)<input type="text" id="w-domain" placeholder="пусто — случайный из списка" autocapitalize="off" spellcheck="false"></label>
+    </div>
+    <div id="w-wsBox" class="row hidden">
+      <label class="f">Ip<select id="w-wsIp"><option value="quic" selected>QUIC</option><option value="dns">DNS</option></select></label>
+      <label class="f">Ib<select id="w-wsIb"><option value="chrome">Chrome</option><option value="firefox">Firefox</option><option value="curl" selected>cURL</option></select></label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Сеть</h2>
+    <label class="f w" style="margin-bottom:8px">DNS
+      <select id="w-dns"></select>
+    </label>
+    <label class="f w" style="margin-bottom:8px">Endpoint
+      <select id="w-epMode">
+        <option value="random" selected>Случайный IP и порт</option>
+        <option value="engage">engage.cloudflareclient.com:2408</option>
+        <option value="custom">Свой…</option>
+      </select>
+    </label>
+    <input type="text" id="w-ep" class="hidden" placeholder="162.159.192.1:2408" autocapitalize="off" spellcheck="false" style="margin-bottom:8px">
+    <div class="row">
+      <label class="f">MTU<input type="number" id="w-mtu" placeholder="1280" min="576" max="1500"></label>
+      <label class="f">Keepalive, с<input type="number" id="w-ka" placeholder="25" min="1" max="999"></label>
+    </div>
+    <label class="chk"><input type="checkbox" id="w-useKa"> Добавить PersistentKeepalive</label>
+    <label class="chk"><input type="checkbox" id="w-ipv6" checked> IPv6</label>
+    <label class="chk"><input type="checkbox" id="w-noJunk"> Убрать мусорные пакеты (Jc = 0)</label>
+  </section>
+
+  <section class="panel" id="w-awg3panel">
+    <h2>AWG 3.0 / 3.1</h2>
+    <label class="chk"><input type="checkbox" id="w-awg3"> Включить параметры AWG 3.0</label>
+    <div id="w-awg3box" class="hidden">
+      <div class="row">
+        <label class="f">ContentPaddingAddition<input type="text" id="w-cpa" placeholder="27-97"></label>
+        <label class="f">MaxHandshakeAttempts<input type="text" id="w-mha" placeholder="18-26"></label>
+        <label class="f">KeepaliveTimeout<input type="text" id="w-kt" placeholder="9-16"></label>
+        <label class="f">RejectAfterTime<input type="text" id="w-rat" placeholder="171-196"></label>
+        <label class="f">RekeyAfterTime<input type="text" id="w-rkat" placeholder="116-131"></label>
+        <label class="f">RekeyTimeout<input type="text" id="w-rt" placeholder="6-9"></label>
+      </div>
+      <div class="row"><button class="ghost" id="w-rndAwg3">Случайно</button></div>
+    </div>
+    <label class="chk"><input type="checkbox" id="w-awg31"> AWG 3.1</label>
+    <div id="w-awg31box" class="hidden">
+      <label class="chk"><input type="checkbox" id="w-trailers" checked> Random trailers</label>
+      <label class="chk"><input type="checkbox" id="w-cookies" checked> Отключить cookies</label>
+    </div>
+  </section>
+
+  <section class="panel" id="w-splitPanel">
+    <h2>Раздельное туннелирование</h2>
+    <label class="chk"><input type="checkbox" id="w-nolan"> Исключить локальную сеть (LAN)</label>
+    <p class="hint" style="margin:2px 0 8px">Или направьте через WARP только выбранные сервисы:</p>
+    <div class="ports" id="w-sites"></div>
+  </section>
+
+  <section class="panel span2">
+    <h2>Результат</h2>
+    <label class="chk"><input type="checkbox" id="w-useProxy"> Получать ключи Cloudflare через прокси</label>
+    <div id="w-proxyBox" class="hidden">
+      <div class="seg" role="radiogroup" aria-label="Тип прокси" style="margin-bottom:8px">
+        <label><input type="radio" name="wpx" value="custom" checked><span>Свой прокси</span></label>
+        <label><input type="radio" name="wpx" value="dpi"><span>ByeDPI</span></label>
+      </div>
+      <input type="text" id="w-proxy" placeholder="socks5://127.0.0.1:1080 или http://user:pass@host:3128" autocapitalize="off" spellcheck="false" style="margin-bottom:8px">
+      <p class="hint hidden" id="w-dpiHint" style="margin:0 0 8px"></p>
+    </div>
+    <div class="row">
+      <button id="w-gen">Сгенерировать</button>
+      <button id="w-newacc" class="ghost">Новый аккаунт</button>
+      <span class="hint" id="w-acc">Аккаунт ещё не создан</span>
+    </div>
+    <textarea id="w-out" spellcheck="false" readonly placeholder="Нажмите «Сгенерировать» — приложение зарегистрирует бесплатный аккаунт WARP и соберёт конфиг"></textarea>
+    <div class="row">
+      <button id="w-save" disabled>Сохранить</button>
+      <button id="w-copy" class="ghost" disabled>Скопировать</button>
+    </div>
+    <p class="hint" id="w-hint"></p>
+  </section>
+</div>

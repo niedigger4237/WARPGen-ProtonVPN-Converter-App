@@ -1,0 +1,6 @@
+node_modules/
+dist/
+android/
+byedpi-bin/ciadpi.exe
+src-byedpi/
+byedpi-dl/

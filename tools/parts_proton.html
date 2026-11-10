@@ -1,0 +1,122 @@
+<div class="grid">
+  <section class="panel">
+    <h2>1. Конфиги Proton</h2>
+    <input type="file" id="file" multiple class="hidden">
+    <div class="row">
+      <button id="pick">Выбрать .conf</button>
+      <button id="paste" class="ghost">Вставить текст</button>
+    </div>
+    <div id="files">Файлы не выбраны</div>
+    <h2 style="margin-top:16px">Формат</h2>
+    <div class="seg four" role="radiogroup" aria-label="Формат">
+      <label><input type="radio" name="fmt" value="awg" checked><span>AmneziaWG</span></label>
+      <label><input type="radio" name="fmt" value="wiresock"><span>WireSock</span></label>
+      <label><input type="radio" name="fmt" value="clash"><span>Clash</span></label>
+      <label><input type="radio" name="fmt" value="xray"><span>Xray</span></label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Маскировка (AWG 1.0)</h2>
+    <div class="seg" role="radiogroup" aria-label="Параметры мусора">
+      <label><input type="radio" name="junk" value="1" checked><span>Jc 3 · 1–3</span></label>
+      <label><input type="radio" name="junk" value="2"><span>Jc 30 · 10–30</span></label>
+      <label><input type="radio" name="junk" value="3"><span>Свои</span></label>
+    </div>
+    <div class="row">
+      <label class="f">Jc<input type="number" id="jc" placeholder="128" min="0" max="999"></label>
+      <label class="f">Jmin<input type="number" id="jmin" placeholder="1279" min="0" max="9999"></label>
+      <label class="f">Jmax<input type="number" id="jmax" placeholder="1280" min="0" max="9999"></label>
+    </div>
+    <div class="row"><button class="ghost" id="rndJunk">Случайно</button></div>
+    <label class="chk"><input type="checkbox" id="noJunk"> Убрать мусорные пакеты (Jc = 0)</label>
+  </section>
+
+  <section class="panel" id="p-awg2">
+    <h2>Имитация протокола (AWG 2.0, I1–I5)</h2>
+    <div class="row">
+      <label class="f w">I1<textarea id="i1" rows="2" spellcheck="false" placeholder="&lt;b 0xc600…&gt;"></textarea></label>
+      <div id="i2-5" class="row" style="margin:0;width:100%"><label class="f w">I2<textarea id="i2" rows="1" spellcheck="false"></textarea></label>
+      <label class="f w">I3<textarea id="i3" rows="1" spellcheck="false"></textarea></label>
+      <label class="f w">I4<textarea id="i4" rows="1" spellcheck="false"></textarea></label>
+      <label class="f w">I5<textarea id="i5" rows="1" spellcheck="false"></textarea></label></div>
+    </div>
+    <div class="row">
+      <button class="ghost" id="rndI">Случайно</button>
+      <button id="genI">Из домена (QUIC)</button>
+    </div>
+    <p class="hint">Пустой I1 заменяется встроенным QUIC-пакетом.</p>
+  </section>
+
+  <section class="panel hidden" id="p-ws">
+    <h2>Имитация протокола (WireSock)</h2>
+    <div class="row">
+      <label class="f w">Id (домен)<input type="text" id="wsId" placeholder="apteka.ru" autocapitalize="off" spellcheck="false"></label>
+      <label class="f">Ip<select id="wsIp"><option value="quic" selected>QUIC</option><option value="dns">DNS</option></select></label>
+      <label class="f">Ib<select id="wsIb"><option value="chrome">Chrome</option><option value="firefox">Firefox</option><option value="curl" selected>cURL</option></select></label>
+    </div>
+    <div class="row"><button class="ghost" id="rndWs">Случайный домен</button></div>
+  </section>
+
+  <section class="panel" id="p-awg3">
+    <h2>AWG 3.0 / 3.1</h2>
+    <label class="chk"><input type="checkbox" id="awg3"> Включить параметры AWG 3.0</label>
+    <div id="awg3box" class="hidden">
+      <div class="row">
+        <label class="f">ContentPaddingAddition<input type="text" id="cpa" placeholder="27-97"></label>
+        <label class="f">MaxHandshakeAttempts<input type="text" id="mha" placeholder="18-26"></label>
+        <label class="f">KeepaliveTimeout<input type="text" id="kt" placeholder="9-16"></label>
+        <label class="f">RejectAfterTime<input type="text" id="rat" placeholder="171-196"></label>
+        <label class="f">RekeyAfterTime<input type="text" id="rkat" placeholder="116-131"></label>
+        <label class="f">RekeyTimeout<input type="text" id="rt" placeholder="6-9"></label>
+      </div>
+      <div class="row"><button class="ghost" id="rndAwg3">Случайно</button></div>
+    </div>
+    <label class="chk"><input type="checkbox" id="awg31"> Отключить cookies (AWG 3.1)</label>
+  </section>
+
+  <section class="panel">
+    <h2>Сеть</h2>
+    <div class="row">
+      <label class="f">MTU<input type="number" id="mtu" placeholder="1420" min="576" max="1500"></label>
+      <label class="f">Keepalive, с<input type="number" id="ka" placeholder="25" min="1" max="999"></label>
+    </div>
+    <label class="chk"><input type="checkbox" id="useKa"> Добавить PersistentKeepalive</label>
+    <label class="chk" id="nolanRow"><input type="checkbox" id="nolan"> Исключить локальную сеть (LAN)</label>
+    <div style="margin:8px 0 6px;font-size:.9rem">Порт Endpoint</div>
+    <div class="ports" id="ports"></div>
+  </section>
+
+  <section class="panel span2">
+    <h2>Результат</h2>
+    <textarea id="out" spellcheck="false" readonly placeholder="Выберите .conf файлы Proton — результат появится здесь"></textarea>
+    <div class="row">
+      <button id="save" disabled>Сохранить</button>
+      <button id="copy" class="ghost" disabled>Скопировать</button>
+    </div>
+    <p class="hint" id="saveHint"></p>
+  </section>
+</div>
+
+<dialog id="dlgDomain">
+  <form method="dialog" style="margin:0">
+    <h2 style="margin-top:0;font-size:1rem">Домен для I1</h2>
+    <input type="text" id="domain" placeholder="example.com" autocapitalize="off" spellcheck="false">
+    <div class="row" style="justify-content:flex-end">
+      <button value="cancel" class="ghost">Отмена</button>
+      <button value="ok" id="domainOk">Сгенерировать</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlgPaste">
+  <form method="dialog" style="margin:0">
+    <h2 style="margin-top:0;font-size:1rem">Текст конфига Proton</h2>
+    <textarea id="pasteText" rows="10" spellcheck="false" placeholder="[Interface]&#10;PrivateKey = …"></textarea>
+    <div class="row" style="justify-content:flex-end">
+      <button value="cancel" class="ghost">Отмена</button>
+      <button value="ok" id="pasteOk">Добавить</button>
+    </div>
+  </form>
+</dialog>
+
