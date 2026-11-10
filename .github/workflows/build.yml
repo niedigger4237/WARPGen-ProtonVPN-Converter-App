@@ -1,12 +1,11 @@
 name: Build Android + Windows
-
+ 
 on:
   workflow_dispatch:
   push:
     tags: ['v*']
-
+ 
 jobs:
-<<<<<<< HEAD
   # Сборка движка ByeDPI из исходников (Windows .exe и Android-исполняемые файлы).
   # Каждый шаг необязателен: если сборка не удалась, приложение собирается без встроенного ByeDPI.
   byedpi:
@@ -42,12 +41,9 @@ jobs:
           name: byedpi-bin
           path: out
           if-no-files-found: warn
-
+ 
   windows:
     needs: byedpi
-=======
-  windows:
->>>>>>> origin/main
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -55,7 +51,6 @@ jobs:
         with: { node-version: 20 }
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-<<<<<<< HEAD
       - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
@@ -65,8 +60,6 @@ jobs:
         shell: pwsh
         run: |
           if (Test-Path byedpi-dl/win/ciadpi.exe) { Copy-Item byedpi-dl/win/ciadpi.exe byedpi-bin/ciadpi.exe; Write-Host "ByeDPI встроен" } else { Write-Host "ByeDPI не собран — сборка без него" }
-=======
->>>>>>> origin/main
       - run: npm install
       - run: npm run build:web
       - run: npm run dist:win
@@ -75,12 +68,9 @@ jobs:
           name: WarpProtonAWG-windows
           path: |
             dist/*.exe
-
+ 
   android:
-<<<<<<< HEAD
     needs: byedpi
-=======
->>>>>>> origin/main
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -90,7 +80,6 @@ jobs:
         with: { python-version: '3.12' }
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 21 }
-<<<<<<< HEAD
       - uses: actions/download-artifact@v4
         continue-on-error: true
         with:
@@ -100,17 +89,10 @@ jobs:
       - run: npm run build:web
       - run: npx cap add android
       - name: Нативный плагин (прокси + ByeDPI) и OkHttp
-=======
-      - run: npm install
-      - run: npm run build:web
-      - run: npx cap add android
-      - name: Нативный плагин для запросов через прокси (OkHttp)
->>>>>>> origin/main
         run: |
           dir=$(dirname "$(find android/app/src/main/java -name MainActivity.java | head -1)")
           cp android-native/*.java "$dir/"
           sed -i '0,/^dependencies {/s//dependencies {\n    implementation "com.squareup.okhttp3:okhttp:4.12.0"/' android/app/build.gradle
-<<<<<<< HEAD
           # исполняемый файл ByeDPI должен распаковываться в nativeLibraryDir
           printf '\nandroid {\n    packagingOptions {\n        jniLibs {\n            useLegacyPackaging = true\n        }\n    }\n}\n' >> android/app/build.gradle
           if [ -d byedpi-dl/android ]; then
@@ -126,16 +108,6 @@ jobs:
           sed -i 's#<application#<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />\n    <application#' $f
           sed -i '0,/<application/s#<application#<application android:requestLegacyExternalStorage="true" android:extractNativeLibs="true"#' $f
           grep -n "STORAGE\|extractNativeLibs" $f
-=======
-          grep -n "okhttp" android/app/build.gradle
-          ls "$dir"
-      - name: Разрешение на запись в Документы (Android 9 и ниже)
-        run: |
-          f=android/app/src/main/AndroidManifest.xml
-          sed -i 's#<application#<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />\n    <application#' $f
-          sed -i '0,/<application/s#<application#<application android:requestLegacyExternalStorage="true"#' $f
-          grep -n "STORAGE" $f
->>>>>>> origin/main
       - run: npx cap sync android
       - name: Build debug APK
         working-directory: android
