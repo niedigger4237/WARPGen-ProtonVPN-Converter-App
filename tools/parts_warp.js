@@ -27,11 +27,25 @@
 
   /* ---------- регистрация WARP ---------- */
   const API = 'https://api.cloudflareclient.com/v0i1909051800/';
+  function proxyValue() {
+    if (!$('w-useProxy').checked) return null;
+    const v = $('w-proxy').value.trim();
+    if (!/^(https?|socks5h?|socks4a?|socks):\/\/[^\s/]+$/i.test(v)) throw new Error('Укажите прокси в формате socks5://хост:порт или http://хост:порт (можно user:pass@хост:порт)');
+    return v;
+  }
   async function apiCall(method, endpoint, body, token) {
-    // Windows: запрос идёт через основной процесс Electron; Android: нативный CapacitorHttp; иначе обычный fetch
-    if (window.warpBridge) return window.warpBridge.request(method, endpoint, body || null, token || null);
+    const proxy = proxyValue();
+    // Windows: запрос выполняет основной процесс Electron; Android: нативный плагин (прокси) или CapacitorHttp; иначе обычный fetch
+    if (window.warpBridge) return window.warpBridge.request(method, endpoint, body || null, token || null, proxy);
     const headers = { 'User-Agent': 'CloudflareWarp/1.0', 'Content-Type': 'application/json' };
     if (token) headers.Authorization = `Bearer ${token}`;
+    const cap = window.Capacitor;
+    if (proxy) {
+      if (!(cap && cap.Plugins && cap.Plugins.WarpHttp)) throw new Error('Прокси работает только в приложении для Android и Windows');
+      const r = await cap.Plugins.WarpHttp.request({ url: API + endpoint, method, headers, body: body ? JSON.stringify(body) : '', proxy });
+      if (r.status < 200 || r.status >= 300) throw new Error(`HTTP ${r.status}: ${String(r.data).slice(0, 160)}`);
+      try { return JSON.parse(r.data); } catch { throw new Error('Некорректный ответ сервера: ' + String(r.data).slice(0, 120)); }
+    }
     const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 20000);
     try {
       const r = await fetch(API + endpoint, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: ctl.signal });
@@ -91,6 +105,7 @@
     }
     return out;
   }
+  const jc = () => $('w-noJunk').checked ? 0 : 4;
   const addrs = () => $('w-ipv6').checked ? `${account.client_ipv4}, ${account.client_ipv6}` : account.client_ipv4;
 
   /* ---------- сборка ---------- */
@@ -106,7 +121,7 @@
     else if (variant === 'sip') i1 = D.awgVariants.sip;
     else i1 = 'I1 = ' + await i1ForDomain($('w-domain').value.trim() || seed.domain);
     const L = ['[Interface]', `PrivateKey = ${account.privKey}`, `Address = ${addrs()}`, `DNS = ${dnsList().join(', ')}`, `MTU = ${mtu()}`,
-      'S1 = 0', 'S2 = 0', 'S3 = 0', 'S4 = 0', 'Jc = 4', 'Jmin = 40', 'Jmax = 70', 'H1 = 1', 'H2 = 2', 'H3 = 3', 'H4 = 4', i1];
+      'S1 = 0', 'S2 = 0', 'S3 = 0', 'S4 = 0', `Jc = ${jc()}`, 'Jmin = 40', 'Jmax = 70', 'H1 = 1', 'H2 = 2', 'H3 = 3', 'H4 = 4', i1];
     awg3Pairs().forEach(([a, , v]) => L.push(`${a} = ${v}`));
     L.push('', '[Peer]', `PublicKey = ${account.peer_pub}`, `AllowedIPs = ${allowedIPs()}`, `Endpoint = ${endpoint()}`);
     if (ka()) L.push(`PersistentKeepalive = ${ka()}`);
@@ -114,7 +129,7 @@
   }
   function buildWireSock() {
     const L = ['[Interface]', `PrivateKey = ${account.privKey}`, `Address = ${addrs()}`, `DNS = ${dnsList().join(', ')}`, `MTU = ${mtu()}`,
-      'S1 = 0', 'S2 = 0', 'S3 = 0', 'S4 = 0', 'Jc = 4', 'Jmin = 40', 'Jmax = 70', 'H1 = 1', 'H2 = 2', 'H3 = 3', 'H4 = 4', '',
+      'S1 = 0', 'S2 = 0', 'S3 = 0', 'S4 = 0', `Jc = ${jc()}`, 'Jmin = 40', 'Jmax = 70', 'H1 = 1', 'H2 = 2', 'H3 = 3', 'H4 = 4', '',
       '# Protocol masking', `Id = ${$('w-domain').value.trim() || seed.domain}`, `Ip = ${$('w-wsIp').value}`, `Ib = ${$('w-wsIb').value}`,
       '', '[Peer]', `PublicKey = ${account.peer_pub}`, `AllowedIPs = ${allowedIPs()}`, `Endpoint = ${endpoint()}`];
     if (ka()) L.push(`PersistentKeepalive = ${ka()}`);
@@ -130,7 +145,7 @@
     if (ka()) y.push(`  persistent-keepalive: ${ka()}`);
     y.push('  remote-dns-resolve: true', `  dns: [${dns.join(', ')}]`, '', 'proxies:');
     D.clash.forEach((is, n) => {
-      y.push(`- name: "Стандартный ${n + 1}"`, '  <<: *warp-common', '  server: 162.159.192.1', '  port: 4500', '  amnezia-wg-option:', '   version: 3', '   jc: 4', '   jmin: 40', '   jmax: 70');
+      y.push(`- name: "Стандартный ${n + 1}"`, '  <<: *warp-common', '  server: 162.159.192.1', '  port: 4500', '  amnezia-wg-option:', '   version: 3', `   jc: ${jc()}`, '   jmin: 40', '   jmax: 70');
       is.forEach((h, k) => y.push(`   i${k + 1}: ${h}`));
       if (extra) y.push(extra);
     });
@@ -148,7 +163,7 @@
     if (ka()) peer.keepAlive = Number(ka());
     peer.publicKey = account.peer_pub;
     const noises = [{ delay: '1-2', packet: hex, type: 'hex' }];
-    for (let i = 0; i < 8; i++) noises.push({ delay: '1-3', packet: '23-911', type: 'rand' });
+    for (let i = 0; i < (jc() ? 8 : 0); i++) noises.push({ delay: '1-3', packet: '23-911', type: 'rand' });
     const cfg = {
       dns: { servers: dnsList() },
       inbounds: [
@@ -192,6 +207,7 @@
     $('w-awg3box').classList.toggle('hidden', !$('w-awg3').checked);
     $('w-awg31box').classList.toggle('hidden', !$('w-awg31').checked);
     $('w-ep').classList.toggle('hidden', $('w-epMode').value !== 'custom');
+    $('w-proxy').classList.toggle('hidden', !$('w-useProxy').checked);
     const lan = $('w-nolan').checked;
     document.querySelectorAll('#w-sites input').forEach(i => { i.disabled = lan; if (lan) i.checked = false; });
   }
@@ -209,7 +225,7 @@
     } catch (e) {
       const msg = String(e.message || e);
       const net = /Failed to fetch|NetworkError|Load failed|abort|timeout/i.test(msg);
-      $('w-hint').textContent = 'Ошибка: ' + (net ? 'нет связи с Cloudflare. Проверьте интернет (регистрация WARP работает только в приложении для Android и Windows) и повторите через пару минут.' : msg + ' — подождите несколько минут и повторите.');
+      $('w-hint').textContent = 'Ошибка: ' + (net ? 'нет связи с Cloudflare. Проверьте интернет (регистрация WARP работает только в приложении для Android и Windows) и повторите через пару минут.' : msg + (/^Укажите|только в приложении/.test(msg) ? '' : ' — подождите несколько минут и повторите.'));
       toast('Не удалось получить конфиг');
     } finally { busy = false; $('w-gen').disabled = false; $('w-gen').textContent = 'Сгенерировать'; }
   }
