@@ -1,24 +1,34 @@
 package com.local.protonawg;
 
+<<<<<<< HEAD
 import com.getcapacitor.JSArray;
+=======
+>>>>>>> origin/main
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+<<<<<<< HEAD
 import java.io.File;
 import java.io.InputStream;
+=======
+>>>>>>> origin/main
 import java.net.Authenticator;
 import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
 import java.net.Proxy;
 import java.net.URI;
 import java.net.URLDecoder;
+<<<<<<< HEAD
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.regex.Pattern;
+=======
+import java.util.Iterator;
+>>>>>>> origin/main
 import java.util.concurrent.TimeUnit;
 
 import okhttp3.Credentials;
@@ -117,6 +127,7 @@ public class WarpHttpPlugin extends Plugin {
             }
         }).start();
     }
+<<<<<<< HEAD
 
     /* ---------- ByeDPI: исполняемый файл libciadpi.so из nativeLibraryDir ---------- */
     private static final Pattern OK_TOKEN = Pattern.compile("^[-A-Za-z0-9_.,:+=@%]+$");
@@ -284,4 +295,6 @@ public class WarpHttpPlugin extends Plugin {
             }
         }).start();
     }
+=======
+>>>>>>> origin/main
 }

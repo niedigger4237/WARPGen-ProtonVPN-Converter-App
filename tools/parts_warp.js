@@ -27,15 +27,24 @@
 
   /* ---------- регистрация WARP ---------- */
   const API = 'https://api.cloudflareclient.com/v0i1909051800/';
+<<<<<<< HEAD
   async function proxyValue() {
     if (!$('w-useProxy').checked) return null;
     if (radio('wpx') === 'dpi') return window.AppDpi ? await window.AppDpi.ensure() : (() => { throw new Error('ByeDPI недоступен'); })();
+=======
+  function proxyValue() {
+    if (!$('w-useProxy').checked) return null;
+>>>>>>> origin/main
     const v = $('w-proxy').value.trim();
     if (!/^(https?|socks5h?|socks4a?|socks):\/\/[^\s/]+$/i.test(v)) throw new Error('Укажите прокси в формате socks5://хост:порт или http://хост:порт (можно user:pass@хост:порт)');
     return v;
   }
   async function apiCall(method, endpoint, body, token) {
+<<<<<<< HEAD
     const proxy = await proxyValue();
+=======
+    const proxy = proxyValue();
+>>>>>>> origin/main
     // Windows: запрос выполняет основной процесс Electron; Android: нативный плагин (прокси) или CapacitorHttp; иначе обычный fetch
     if (window.warpBridge) return window.warpBridge.request(method, endpoint, body || null, token || null, proxy);
     const headers = { 'User-Agent': 'CloudflareWarp/1.0', 'Content-Type': 'application/json' };
@@ -208,11 +217,15 @@
     $('w-awg3box').classList.toggle('hidden', !$('w-awg3').checked);
     $('w-awg31box').classList.toggle('hidden', !$('w-awg31').checked);
     $('w-ep').classList.toggle('hidden', $('w-epMode').value !== 'custom');
+<<<<<<< HEAD
     $('w-proxyBox').classList.toggle('hidden', !$('w-useProxy').checked);
     const dpi = radio('wpx') === 'dpi';
     $('w-proxy').classList.toggle('hidden', dpi);
     $('w-dpiHint').classList.toggle('hidden', !dpi);
     if (dpi && window.AppDpi) $('w-dpiHint').textContent = 'Будет запущен встроенный ByeDPI: ' + window.AppDpi.describe() + '. Стратегию можно подобрать на вкладке ByeDPI.';
+=======
+    $('w-proxy').classList.toggle('hidden', !$('w-useProxy').checked);
+>>>>>>> origin/main
     const lan = $('w-nolan').checked;
     document.querySelectorAll('#w-sites input').forEach(i => { i.disabled = lan; if (lan) i.checked = false; });
   }
@@ -230,7 +243,11 @@
     } catch (e) {
       const msg = String(e.message || e);
       const net = /Failed to fetch|NetworkError|Load failed|abort|timeout/i.test(msg);
+<<<<<<< HEAD
       $('w-hint').textContent = 'Ошибка: ' + (net ? 'нет связи с Cloudflare. Проверьте интернет (регистрация WARP работает только в приложении для Android и Windows) и повторите через пару минут.' : msg + (/^Укажите|только в приложении|ByeDPI|Движок/.test(msg) ? '' : ' — подождите несколько минут и повторите.'));
+=======
+      $('w-hint').textContent = 'Ошибка: ' + (net ? 'нет связи с Cloudflare. Проверьте интернет (регистрация WARP работает только в приложении для Android и Windows) и повторите через пару минут.' : msg + (/^Укажите|только в приложении/.test(msg) ? '' : ' — подождите несколько минут и повторите.'));
+>>>>>>> origin/main
       toast('Не удалось получить конфиг');
     } finally { busy = false; $('w-gen').disabled = false; $('w-gen').textContent = 'Сгенерировать'; }
   }
@@ -257,6 +274,9 @@
     $('w-save').onclick = () => { if (outputs.length) AppSave(outputs, 'Конфиг WARP'); };
     updateVisibility();
   }
+<<<<<<< HEAD
   window.AppDpiChanged = updateVisibility;
+=======
+>>>>>>> origin/main
   init();
 })();
