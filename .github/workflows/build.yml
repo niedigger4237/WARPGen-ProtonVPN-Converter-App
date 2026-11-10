@@ -36,6 +36,12 @@ jobs:
       - run: npm install
       - run: npm run build:web
       - run: npx cap add android
+      - name: Разрешение на запись в Документы (Android 9 и ниже)
+        run: |
+          f=android/app/src/main/AndroidManifest.xml
+          sed -i 's#<application#<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />\n    <application#' $f
+          sed -i '0,/<application/s#<application#<application android:requestLegacyExternalStorage="true"#' $f
+          grep -n "STORAGE" $f
       - run: npx cap sync android
       - name: Build debug APK
         working-directory: android
