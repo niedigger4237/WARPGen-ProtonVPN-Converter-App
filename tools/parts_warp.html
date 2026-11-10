@@ -43,6 +43,7 @@
     </div>
     <label class="chk"><input type="checkbox" id="w-useKa"> Добавить PersistentKeepalive</label>
     <label class="chk"><input type="checkbox" id="w-ipv6" checked> IPv6</label>
+    <label class="chk"><input type="checkbox" id="w-noJunk"> Убрать мусорные пакеты (Jc = 0)</label>
   </section>
 
   <section class="panel" id="w-awg3panel">
@@ -75,6 +76,8 @@
 
   <section class="panel span2">
     <h2>Результат</h2>
+    <label class="chk"><input type="checkbox" id="w-useProxy"> Получать ключи Cloudflare через прокси</label>
+    <input type="text" id="w-proxy" class="hidden" placeholder="socks5://127.0.0.1:1080 или http://user:pass@host:3128" autocapitalize="off" spellcheck="false" style="margin-bottom:8px">
     <div class="row">
       <button id="w-gen">Сгенерировать</button>
       <button id="w-newacc" class="ghost">Новый аккаунт</button>
