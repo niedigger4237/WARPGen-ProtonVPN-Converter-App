@@ -36,6 +36,13 @@ jobs:
       - run: npm install
       - run: npm run build:web
       - run: npx cap add android
+      - name: Нативный плагин для запросов через прокси (OkHttp)
+        run: |
+          dir=$(dirname "$(find android/app/src/main/java -name MainActivity.java | head -1)")
+          cp android-native/*.java "$dir/"
+          sed -i '0,/^dependencies {/s//dependencies {\n    implementation "com.squareup.okhttp3:okhttp:4.12.0"/' android/app/build.gradle
+          grep -n "okhttp" android/app/build.gradle
+          ls "$dir"
       - name: Разрешение на запись в Документы (Android 9 и ниже)
         run: |
           f=android/app/src/main/AndroidManifest.xml
