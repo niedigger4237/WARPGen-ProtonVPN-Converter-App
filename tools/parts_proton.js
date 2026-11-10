@@ -73,6 +73,7 @@ function toProxy(cfg, fileName){
   const def = junkDefaults();
   const awg = {};
   for (const k of AWG_KEYS) awg[k] = I.awg[k] || P.awg[k] || def[k];
+  if ($('noJunk').checked) awg.jc = 0;   // без мусорных пакетов
   const orig = P.name || fileName.replace(/\.conf$/i,'');
   let name = orig.replace(/FREE#?/g,'').replace(/-$/,'');
   const fm = name.match(/^([A-Z]{2})[-_]/);
