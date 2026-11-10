@@ -49,7 +49,6 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "artifactName": "WarpProtonAWG-setup-${version}.exe"
-<<<<<<< HEAD
     },
     "extraResources": [
       {
@@ -60,8 +59,5 @@
         ]
       }
     ]
-=======
-    }
->>>>>>> origin/main
   }
 }
