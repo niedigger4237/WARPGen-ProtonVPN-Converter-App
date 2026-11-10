@@ -9,7 +9,7 @@
   "scripts": {
     "build:web": "python3 tools/build.py",
     "start": "electron .",
-    "dist:win": "electron-builder --win portable nsis --x64",
+    "dist:win": "electron-builder --win portable nsis --x64 --publish never",
     "android:init": "cap add android && cap sync android",
     "android:sync": "cap sync android"
   },
