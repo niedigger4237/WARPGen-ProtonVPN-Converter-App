@@ -19,11 +19,8 @@ for k, v in {
     '__X25519__': rd('x25519.js'),
     '__WARP_JS__': warp_js,
     '__PROTON_JS__': proton_js,
-<<<<<<< HEAD
     '__DPI_HTML__': rd('parts_dpi.html'),
     '__DPI_JS__': rd('parts_dpi.js'),
-=======
->>>>>>> origin/main
 }.items():
     t = t.replace(k, v)
 assert '__' not in ''.join(c for c in [x for x in ['__CSS__','__WARP_JS__','__PROTON_JS__','__QUIC__'] if x in t]), 'не все плейсхолдеры заменены'
