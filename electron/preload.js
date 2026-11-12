@@ -3,7 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('warpBridge', {
   dpi: {
     available: () => ipcRenderer.invoke('dpi:available'),
-    start: (args, port) => ipcRenderer.invoke('dpi:start', { args, port }),
+    start: (args, port, notify, text) => ipcRenderer.invoke('dpi:start', { args, port, notify: !!notify, text }),
+    status: () => ipcRenderer.invoke('dpi:status'),
     stop: () => ipcRenderer.invoke('dpi:stop'),
     probe: (url, port, timeout, round) => ipcRenderer.invoke('dpi:probe', { url, port, timeout, round }),
   },
