@@ -105,9 +105,10 @@ jobs:
       - name: Манифест (запись в Документы, распаковка библиотек)
         run: |
           f=android/app/src/main/AndroidManifest.xml
-          sed -i 's#<application#<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />\n    <application#' $f
+          sed -i 's#<application#<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />\n    <application#' $f
+          sed -i 's#</application>#    <service android:name="com.local.protonawg.DpiService" android:exported="false" android:foregroundServiceType="specialUse">\n            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="local_socks_proxy" />\n        </service>\n    </application>#' $f
           sed -i '0,/<application/s#<application#<application android:requestLegacyExternalStorage="true" android:extractNativeLibs="true"#' $f
-          grep -n "STORAGE\|extractNativeLibs" $f
+          grep -n "STORAGE\|extractNativeLibs\|DpiService\|FOREGROUND\|POST_NOTIF" $f
       - run: npx cap sync android
       - name: Build debug APK
         working-directory: android
