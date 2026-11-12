@@ -1,10 +1,10 @@
 name: Build Android + Windows
- 
+
 on:
   workflow_dispatch:
   push:
     tags: ['v*']
- 
+
 jobs:
   # Сборка движка ByeDPI из исходников (Windows .exe и Android-исполняемые файлы).
   # Каждый шаг необязателен: если сборка не удалась, приложение собирается без встроенного ByeDPI.
@@ -41,7 +41,7 @@ jobs:
           name: byedpi-bin
           path: out
           if-no-files-found: warn
- 
+
   windows:
     needs: byedpi
     runs-on: windows-latest
@@ -68,7 +68,7 @@ jobs:
           name: WarpProtonAWG-windows
           path: |
             dist/*.exe
- 
+
   android:
     needs: byedpi
     runs-on: ubuntu-latest
