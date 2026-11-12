@@ -36,12 +36,12 @@
   function backend() {
     if (window.warpBridge && window.warpBridge.dpi) {
       const d = window.warpBridge.dpi;
-      return { win: true, available: () => d.available(), start: (a, p) => d.start(a, p), stop: () => d.stop(), probe: (u, p, t, r) => d.probe(u, p, t, r) };
+      return { win: true, available: () => d.available(), start: (a, p, n, t) => d.start(a, p, n, t), stop: () => d.stop(), status: () => d.status(), probe: (u, p, t, r) => d.probe(u, p, t, r) };
     }
     const c = window.Capacitor;
     if (c && c.isNativePlatform && c.isNativePlatform() && c.Plugins && c.Plugins.WarpHttp && c.Plugins.WarpHttp.dpiStart) {
       const w = c.Plugins.WarpHttp;
-      return { win: false, available: async () => !!(await w.dpiAvailable()).available, start: (a, p) => w.dpiStart({ args: a, port: p }), stop: () => w.dpiStop(), probe: (u, p, t) => w.dpiProbe({ url: u, port: p, timeout: t }) };
+      return { win: false, available: async () => !!(await w.dpiAvailable()).available, start: (a, p, n, t) => w.dpiStart({ args: a, port: p, notify: !!n, text: t || '' }), stop: () => w.dpiStop(), status: () => w.dpiStatus(), probe: (u, p, t) => w.dpiProbe({ url: u, port: p, timeout: t }) };
     }
     return null;
   }
@@ -80,9 +80,9 @@
     const args = parseArgs(currentArgsStr());
     const p = port();
     if (running) await be.stop();
-    await be.start(args, p);
+    await be.start(args, p, $('d-notify').checked, `socks5://127.0.0.1:${p} · ${currentArgsStr() || 'без параметров'}`);
     running = { port: p, args: currentArgsStr() };
-    store.set('dpi.port', String(p)); store.set('dpi.args', currentArgsStr());
+    store.set('dpi.port', String(p)); store.set('dpi.notify', $('d-notify').checked ? '1' : '0'); store.set('dpi.args', currentArgsStr());
     setStatus();
   }
   async function stop() { if (be) { try { await be.stop(); } catch {} } running = null; setStatus(); }
@@ -112,7 +112,7 @@
         const r = row(s.name, s.args);
         let ok = 0, ms = 0, failed = '';
         try {
-          await be.start(s.args ? s.args.split(' ') : [], p);
+          await be.start(s.args ? s.args.split(' ') : [], p, false, '');
           await new Promise(res => setTimeout(res, 200));
           const rs = await Promise.all(targets.map(t => be.probe(t.url, p, timeout, `${Date.now()}-${i}`).catch(e => ({ ok: false, error: String(e && e.message || e) }))));
           rs.forEach(x => { if (x && x.ok) { ok++; ms += x.ms || 0; } });
@@ -149,7 +149,11 @@
   function init() {
     $('d-strat').innerHTML = list().map(s => `<option value="${s.id}">${s.name}</option>`).join('') + '<option value="custom">Своя</option>';
     $('d-targets').innerHTML = TARGETS.map(t => `<label><input type="checkbox" id="d-t-${t.id}"${t.on ? ' checked' : ''}><span>${t.name}</span></label>`).join('');
-    $('d-port').value = store.get('dpi.port', '') ;
+    $('d-port').value = store.get('dpi.port', '');
+    $('d-notify').checked = store.get('dpi.notify', '1') !== '0';
+    $('d-notify').onchange = () => store.set('dpi.notify', $('d-notify').checked ? '1' : '0');
+    // состояние мог изменить внешний «Стоп» (кнопка в уведомлении, трей) или аварийное завершение процесса
+    setInterval(async () => { if (running && be && !searching) { try { const st = await be.status(); if (st && !st.running) { running = null; setStatus(); } } catch {} } }, 3000);
     const sid = store.get('dpi.strat', 's1'); const known = list().some(s => s.id === sid);
     $('d-strat').value = known || sid === 'custom' ? sid : 's1';
     const saved = store.get('dpi.args', null);
