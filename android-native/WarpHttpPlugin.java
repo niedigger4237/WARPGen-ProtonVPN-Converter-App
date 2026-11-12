@@ -5,9 +5,25 @@ import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
+import android.app.Activity;
+import android.content.ContentResolver;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
+import android.provider.DocumentsContract;
+
+import androidx.activity.result.ActivityResult;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+import org.json.JSONObject;
+
 import java.io.File;
+import java.io.OutputStream;
 import java.io.InputStream;
 import java.net.Authenticator;
 import java.net.InetSocketAddress;
@@ -122,13 +138,13 @@ public class WarpHttpPlugin extends Plugin {
     private static final Pattern OK_TOKEN = Pattern.compile("^[-A-Za-z0-9_.,:+=@%]+$");
     private static final Pattern BAD_FLAG = Pattern.compile("^(-i|--ip|-p|--port|-I|--conn-ip|-D|--daemon|-w|--pidfile|-E|--transparent|-H|--hosts|-j|--ipset)(=.*)?$");
     private static final Pattern PROBE_URL = Pattern.compile("^https://[A-Za-z0-9.-]+/$");
-    private Process dpiProc = null;
+    private static Process dpiProc = null;
 
     private File dpiFile() {
         return new File(getContext().getApplicationInfo().nativeLibraryDir, "libciadpi.so");
     }
 
-    private synchronized void killDpi() {
+    static synchronized void killDpiStatic() {
         if (dpiProc != null) {
             try {
                 dpiProc.destroy();
@@ -142,10 +158,36 @@ public class WarpHttpPlugin extends Plugin {
         }
     }
 
+    private void killDpi() {
+        killDpiStatic();
+    }
+
+    private void stopNotificationService() {
+        try {
+            getContext().stopService(new Intent(getContext(), DpiService.class));
+        } catch (Exception ignored) {
+        }
+    }
+
     @Override
     protected void handleOnDestroy() {
         killDpi();
+        stopNotificationService();
         super.handleOnDestroy();
+    }
+
+    private void showNotification(String text) {
+        try {
+            if (Build.VERSION.SDK_INT >= 33 && getActivity() != null
+                    && ContextCompat.checkSelfPermission(getContext(), "android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(getActivity(), new String[]{"android.permission.POST_NOTIFICATIONS"}, 4712);
+            }
+            Intent i = new Intent(getContext(), DpiService.class);
+            i.putExtra("text", text == null ? "" : text);
+            ContextCompat.startForegroundService(getContext(), i);
+        } catch (Exception ignored) {
+            // уведомление необязательно: прокси работает и без него
+        }
     }
 
     @PluginMethod
@@ -156,8 +198,30 @@ public class WarpHttpPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void dpiStatus(PluginCall call) {
+        boolean running = false;
+        synchronized (WarpHttpPlugin.class) {
+            if (dpiProc != null) {
+                try {
+                    dpiProc.exitValue();
+                    dpiProc = null; // процесс завершился
+                } catch (IllegalThreadStateException alive) {
+                    running = true;
+                }
+            }
+        }
+        if (!running) {
+            stopNotificationService();
+        }
+        JSObject r = new JSObject();
+        r.put("running", running);
+        call.resolve(r);
+    }
+
+    @PluginMethod
     public void dpiStop(PluginCall call) {
         killDpi();
+        stopNotificationService();
         call.resolve();
     }
 
@@ -233,8 +297,11 @@ public class WarpHttpPlugin extends Plugin {
                     } catch (IllegalThreadStateException stillRunning) {
                         // процесс работает
                     }
-                    synchronized (WarpHttpPlugin.this) {
+                    synchronized (WarpHttpPlugin.class) {
                         dpiProc = pr;
+                    }
+                    if (Boolean.TRUE.equals(call.getBoolean("notify", false))) {
+                        showNotification(call.getString("text", ""));
                     }
                     JSObject res = new JSObject();
                     res.put("running", true);
@@ -283,5 +350,79 @@ public class WarpHttpPlugin extends Plugin {
                 call.resolve(res);
             }
         }).start();
+    }
+
+    /* ---------- Сохранение конфигов: системный выбор файла или папки ---------- */
+    @PluginMethod
+    public void saveFiles(PluginCall call) {
+        JSArray files = call.getArray("files");
+        if (files == null || files.length() == 0) {
+            call.reject("Нет файлов");
+            return;
+        }
+        try {
+            Intent intent;
+            if (files.length() == 1) {
+                intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("application/octet-stream");
+                intent.putExtra(Intent.EXTRA_TITLE, files.getJSONObject(0).getString("name"));
+            } else {
+                intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            }
+            startActivityForResult(call, intent, "saveResult");
+        } catch (Exception e) {
+            call.reject(e.getMessage() == null ? e.toString() : e.getMessage());
+        }
+    }
+
+    @ActivityCallback
+    private void saveResult(PluginCall call, ActivityResult result) {
+        if (call == null) {
+            return;
+        }
+        JSObject res = new JSObject();
+        if (result.getResultCode() != Activity.RESULT_OK || result.getData() == null || result.getData().getData() == null) {
+            res.put("canceled", true);
+            call.resolve(res);
+            return;
+        }
+        try {
+            Uri uri = result.getData().getData();
+            JSArray files = call.getArray("files");
+            ContentResolver cr = getContext().getContentResolver();
+            int count = 0;
+            if (files.length() == 1) {
+                writeText(cr, uri, files.getJSONObject(0).getString("text"));
+                count = 1;
+            } else {
+                Uri parent = DocumentsContract.buildDocumentUriUsingTree(uri, DocumentsContract.getTreeDocumentId(uri));
+                for (int i = 0; i < files.length(); i++) {
+                    JSONObject f = files.getJSONObject(i);
+                    Uri doc = DocumentsContract.createDocument(cr, parent, "application/octet-stream", f.getString("name"));
+                    if (doc != null) {
+                        writeText(cr, doc, f.getString("text"));
+                        count++;
+                    }
+                }
+            }
+            res.put("canceled", false);
+            res.put("count", count);
+            call.resolve(res);
+        } catch (Exception e) {
+            call.reject(e.getMessage() == null ? e.toString() : e.getMessage());
+        }
+    }
+
+    private static void writeText(ContentResolver cr, Uri uri, String text) throws Exception {
+        OutputStream os = cr.openOutputStream(uri, "wt");
+        if (os == null) {
+            throw new Exception("Не удалось открыть файл для записи");
+        }
+        try {
+            os.write(text.getBytes("UTF-8"));
+        } finally {
+            os.close();
+        }
     }
 }
