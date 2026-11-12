@@ -16,6 +16,7 @@ __CSS__
 .dpi-row .dpi-state{white-space:nowrap;font-variant-numeric:tabular-nums;opacity:.8}
 .dpi-row.good{border-color:#2e9d5b}.dpi-row.part{border-color:#c79a1e}.dpi-row.bad{opacity:.6}
 .dpi-row.best{background:rgba(46,157,91,.18);font-weight:600}
+.byline{text-align:center;font-size:.8rem;letter-spacing:.06em;color:var(--muted);margin:0 0 6px}
 .seg.four label{padding:10px 2px;font-size:.84rem}
 #w-out{min-height:230px}
 body{padding-top:0}
@@ -23,6 +24,7 @@ body{padding-top:0}
 </head>
 <body>
 <div class="topbar">
+  <div class="byline">by NieFigger</div>
   <div class="seg" role="radiogroup" aria-label="Режим приложения" id="tabs">
     <label><input type="radio" name="tab" value="warp" checked><span>WARP</span></label>
     <label><input type="radio" name="tab" value="proton"><span>Proton</span></label>
@@ -63,7 +65,7 @@ __X25519__
 /* ---------- общие функции оболочки ---------- */
 function AppToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(AppToast.t); AppToast.t=setTimeout(()=>t.classList.remove('on'),2400); }
 
-// Сохранение на устройство: Windows — диалог сохранения, Android — папка «Документы/WarpProtonAWG», браузер — скачивание
+// Сохранение на устройство: Windows и Android — системный выбор места (запасной вариант Android: «Документы/WarpProtonAWG»), браузер — скачивание
 async function AppSave(files, title){
   if (window.warpBridge && window.warpBridge.saveFiles){
     try {
@@ -75,6 +77,13 @@ async function AppSave(files, title){
   const cap = window.Capacitor;
   if (cap && cap.isNativePlatform && cap.isNativePlatform()){
     const {Filesystem, Share} = cap.Plugins;
+    // Сначала — системный выбор места сохранения (файл или папка)
+    try {
+      const r = await cap.Plugins.WarpHttp.saveFiles({files: files.map(f=>({name:f.fileName, text:f.text}))});
+      if (r && r.canceled) return;
+      AppToast(r.count>1 ? `Сохранено файлов: ${r.count}` : 'Файл сохранён');
+      return;
+    } catch(e){ /* нет плагина или ошибка — пробуем запасной вариант */ }
     try {
       try { await Filesystem.requestPermissions(); } catch(e){}
       for (const f of files)
