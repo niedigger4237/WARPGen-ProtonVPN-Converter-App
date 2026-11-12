@@ -1,8 +1,5 @@
 const { app, BrowserWindow, Menu, session, ipcMain, net, dialog, shell } = require('electron');
-<<<<<<< HEAD
 const { spawn } = require('child_process');
-=======
->>>>>>> origin/main
 const path = require('path');
 const fs = require('fs');
 
@@ -76,7 +73,6 @@ ipcMain.handle('app:save', async (e, files) => {
   return { path: dir, count: files.length };
 });
 
-<<<<<<< HEAD
 
 /* ---------- ByeDPI (ciadpi.exe): локальный SOCKS5-прокси ---------- */
 const BAD_FLAG = /^(-i|--ip|-p|--port|-I|--conn-ip|-D|--daemon|-w|--pidfile|-E|--transparent|-H|--hosts|-j|--ipset)(=|$)/;
@@ -125,8 +121,6 @@ ipcMain.handle('dpi:probe', async (_e, { url, port, timeout, round }) => {
 });
 app.on('before-quit', () => { if (dpiProc) { try { dpiProc.kill(); } catch {} } });
 
-=======
->>>>>>> origin/main
 function createWindow() {
   const win = new BrowserWindow({
     width: 1000, height: 800, minWidth: 380, minHeight: 600,
