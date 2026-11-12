@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, session, ipcMain, net, dialog, shell } = require('electron');
+const { app, BrowserWindow, Menu, session, ipcMain, net, dialog, shell, Notification, Tray, nativeImage } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -51,23 +51,30 @@ ipcMain.handle('warp:request', async (_e, { method, endpoint, body, token, proxy
   try { return JSON.parse(r.text); } catch { throw new Error('Некорректный ответ сервера: ' + r.text.slice(0, 120)); }
 });
 
+// Запоминаем последнюю папку сохранения
+const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
+const loadSettings = () => { try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; } };
+const saveSettings = o => { try { fs.writeFileSync(settingsFile(), JSON.stringify({ ...loadSettings(), ...o })); } catch {} };
+
 // Сохранение конфигов на диск: один файл — диалог «Сохранить как», несколько — выбор папки
 ipcMain.handle('app:save', async (e, files) => {
   if (!Array.isArray(files) || !files.length || files.length > 500) throw new Error('Нет файлов');
   const win = BrowserWindow.fromWebContents(e.sender);
   const safe = n => path.basename(String(n)).replace(/[<>:"/\\|?*\x00-\x1f]/g, '_') || 'config.txt';
-  const dl = app.getPath('downloads');
+  let dl = app.getPath('downloads');
+  const last = loadSettings().lastDir;
+  if (last && fs.existsSync(last)) dl = last;
   let dir, target;
   if (files.length === 1) {
     const r = await dialog.showSaveDialog(win, { defaultPath: path.join(dl, safe(files[0].fileName)) });
     if (r.canceled || !r.filePath) return { canceled: true };
     fs.writeFileSync(r.filePath, String(files[0].text), 'utf8');
-    target = r.filePath; shell.showItemInFolder(target);
+    target = r.filePath; saveSettings({ lastDir: path.dirname(target) }); shell.showItemInFolder(target);
     return { path: target, count: 1 };
   }
   const r = await dialog.showOpenDialog(win, { title: 'Папка для сохранения конфигов', defaultPath: dl, properties: ['openDirectory', 'createDirectory'] });
   if (r.canceled || !r.filePaths[0]) return { canceled: true };
-  dir = r.filePaths[0];
+  dir = r.filePaths[0]; saveSettings({ lastDir: dir });
   for (const f of files) fs.writeFileSync(path.join(dir, safe(f.fileName)), String(f.text), 'utf8');
   shell.openPath(dir);
   return { path: dir, count: files.length };
@@ -78,15 +85,35 @@ ipcMain.handle('app:save', async (e, files) => {
 const BAD_FLAG = /^(-i|--ip|-p|--port|-I|--conn-ip|-D|--daemon|-w|--pidfile|-E|--transparent|-H|--hosts|-j|--ipset)(=|$)/;
 const OK_TOKEN = /^[-A-Za-z0-9_.,:+=@%]+$/;
 const dpiExe = () => app.isPackaged ? path.join(process.resourcesPath, 'byedpi', 'ciadpi.exe') : path.join(__dirname, '..', 'byedpi-bin', 'ciadpi.exe');
-let dpiProc = null;
+let dpiProc = null, tray = null, mainWin = null;
+const iconPath = () => path.join(__dirname, '..', 'assets', 'icon.png');
+
+function notify(title, body) { try { if (Notification.isSupported()) new Notification({ title, body, icon: iconPath(), silent: true }).show(); } catch {} }
+function hideTray() { if (tray) { try { tray.destroy(); } catch {} tray = null; } }
+function showTray(text) {
+  hideTray();
+  try {
+    tray = new Tray(nativeImage.createFromPath(iconPath()).resize({ width: 16, height: 16 }));
+    tray.setToolTip('ByeDPI запущен\n' + text);
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: 'Открыть окно', click: () => { if (mainWin) { mainWin.show(); mainWin.focus(); } } },
+      { label: 'Остановить ByeDPI', click: async () => { await dpiStop(); notify('ByeDPI остановлен', 'Прокси выключен'); } },
+      { type: 'separator' },
+      { label: 'Выход', click: () => app.quit() },
+    ]));
+    tray.on('click', () => { if (mainWin) { mainWin.show(); mainWin.focus(); } });
+  } catch {}
+}
 
 function dpiStop() {
-  if (dpiProc) { try { dpiProc.kill(); } catch {} dpiProc = null; }
+  hideTray();
+  if (dpiProc) { const p = dpiProc; dpiProc = null; try { p.kill(); } catch {} }
   return new Promise(r => setTimeout(r, 120));
 }
 ipcMain.handle('dpi:available', () => fs.existsSync(dpiExe()));
 ipcMain.handle('dpi:stop', () => dpiStop());
-ipcMain.handle('dpi:start', async (_e, { args, port }) => {
+ipcMain.handle('dpi:status', () => ({ running: !!dpiProc }));
+ipcMain.handle('dpi:start', async (_e, { args, port, notify: wantNotify, text }) => {
   if (!fs.existsSync(dpiExe())) throw new Error('Движок ByeDPI не найден в сборке');
   if (!Array.isArray(args) || args.length > 60 || !args.every(a => typeof a === 'string' && OK_TOKEN.test(a) && !BAD_FLAG.test(a))) throw new Error('Недопустимые параметры');
   if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Недопустимый порт');
@@ -95,11 +122,12 @@ ipcMain.handle('dpi:start', async (_e, { args, port }) => {
   let out = '', exited = null;
   const add = d => { if (out.length < 600) out += d.toString(); };
   child.stdout.on('data', add); child.stderr.on('data', add);
-  child.on('exit', code => { exited = code; if (dpiProc === child) dpiProc = null; });
+  child.on('exit', code => { exited = code; if (dpiProc === child) { dpiProc = null; hideTray(); notify('ByeDPI остановлен', `Процесс завершился (код ${code})`); } });
   child.on('error', e => { exited = -1; out += String(e.message || e); });
   dpiProc = child;
   await new Promise(r => setTimeout(r, 450));
   if (exited !== null) { dpiProc = null; throw new Error(`ByeDPI завершился (код ${exited}): ${out.trim().slice(0, 200) || 'порт занят или неверные параметры'}`); }
+  if (wantNotify) { const t = String(text || `socks5://127.0.0.1:${port}`).slice(0, 200); showTray(t); notify('ByeDPI запущен', t); }
   return { running: true };
 });
 // Проверка доступности сайта через локальный SOCKS5: достаточно получить любой HTTP-ответ по HTTPS
@@ -119,7 +147,7 @@ ipcMain.handle('dpi:probe', async (_e, { url, port, timeout, round }) => {
     req.end();
   });
 });
-app.on('before-quit', () => { if (dpiProc) { try { dpiProc.kill(); } catch {} } });
+app.on('before-quit', () => { hideTray(); if (dpiProc) { try { dpiProc.kill(); } catch {} } });
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -134,8 +162,10 @@ function createWindow() {
     cb({ cancel: !(/^(file|blob|data|devtools):/i.test(d.url) || d.url.startsWith(API)) }));
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('file:')) e.preventDefault(); });
+  mainWin = win;
   win.loadFile(path.join(__dirname, '..', 'www', 'index.html'));
 }
 
+app.setAppUserModelId('com.local.protonawg');
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => app.quit());
