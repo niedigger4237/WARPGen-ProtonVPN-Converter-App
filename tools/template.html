@@ -11,14 +11,11 @@ __CSS__
 .topbar .seg label{padding:12px 6px;font-size:1rem}
 .view h1{font-size:1.2rem;margin:6px 0 2px}
 .ports input:disabled+span{opacity:.4}
-<<<<<<< HEAD
 .dpi-res{margin-top:8px;display:flex;flex-direction:column;gap:4px}
 .dpi-row{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:10px;background:var(--field);font-size:.9rem;border:1px solid transparent}
 .dpi-row .dpi-state{white-space:nowrap;font-variant-numeric:tabular-nums;opacity:.8}
 .dpi-row.good{border-color:#2e9d5b}.dpi-row.part{border-color:#c79a1e}.dpi-row.bad{opacity:.6}
 .dpi-row.best{background:rgba(46,157,91,.18);font-weight:600}
-=======
->>>>>>> origin/main
 .seg.four label{padding:10px 2px;font-size:.84rem}
 #w-out{min-height:230px}
 body{padding-top:0}
@@ -27,14 +24,9 @@ body{padding-top:0}
 <body>
 <div class="topbar">
   <div class="seg" role="radiogroup" aria-label="Режим приложения" id="tabs">
-<<<<<<< HEAD
     <label><input type="radio" name="tab" value="warp" checked><span>WARP</span></label>
     <label><input type="radio" name="tab" value="proton"><span>Proton</span></label>
     <label><input type="radio" name="tab" value="dpi"><span>ByeDPI</span></label>
-=======
-    <label><input type="radio" name="tab" value="warp" checked><span>WARP генератор</span></label>
-    <label><input type="radio" name="tab" value="proton"><span>Proton конвертер</span></label>
->>>>>>> origin/main
   </div>
 </div>
 
@@ -50,15 +42,12 @@ __WARP_HTML__
   <p class="sub">Конвертер WireGuard-конфигов Proton VPN в AmneziaWG, WireSock, Clash и Xray. Работает полностью офлайн.</p>
 __PROTON_HTML__
 </section>
-<<<<<<< HEAD
 
 <section id="view-dpi" class="view hidden">
   <h1>Обход блокировок (ByeDPI)</h1>
   <p class="sub">Локальный SOCKS5-прокси, который изменяет первые пакеты соединения, чтобы обойти DPI-фильтрацию. Подберите стратегию автоматически и используйте её для получения WARP-ключей или в других программах (socks5://127.0.0.1:порт).</p>
 __DPI_HTML__
 </section>
-=======
->>>>>>> origin/main
 </main>
 
 <div id="toast" role="status" aria-live="polite"></div>
@@ -111,29 +100,17 @@ async function AppSave(files, title){
 
 /* ---------- переключатель режимов ---------- */
 (function(){
-<<<<<<< HEAD
   const views = {warp: document.getElementById('view-warp'), proton: document.getElementById('view-proton'), dpi: document.getElementById('view-dpi')};
   function show(name){
     for (const k in views) views[k].classList.toggle('hidden', k!==name);
     document.querySelector(`#tabs input[value="${name}"]`).checked = true;
     document.title = {warp:'WARP генератор', proton:'Proton → AWG', dpi:'ByeDPI'}[name];
-=======
-  const views = {warp: document.getElementById('view-warp'), proton: document.getElementById('view-proton')};
-  function show(name){
-    for (const k in views) views[k].classList.toggle('hidden', k!==name);
-    document.querySelector(`#tabs input[value="${name}"]`).checked = true;
-    document.title = name==='warp' ? 'WARP генератор' : 'Proton → AWG';
->>>>>>> origin/main
     try { localStorage.setItem('tab', name); } catch(e){}
     window.scrollTo(0,0);
   }
   document.querySelectorAll('#tabs input').forEach(i=>i.addEventListener('change', ()=>show(i.value)));
   let saved = null; try { saved = localStorage.getItem('tab'); } catch(e){}
-<<<<<<< HEAD
   show(views[saved] ? saved : 'warp');
-=======
-  show(saved==='proton' ? 'proton' : 'warp');
->>>>>>> origin/main
 })();
 </script>
 <script>
@@ -143,14 +120,11 @@ __WARP_JS__
 </script>
 <script>
 (function(){
-<<<<<<< HEAD
 __DPI_JS__
 })();
 </script>
 <script>
 (function(){
-=======
->>>>>>> origin/main
 __PROTON_JS__
 })();
 </script>
