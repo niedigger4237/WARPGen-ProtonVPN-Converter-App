@@ -1,9 +1,8 @@
 node_modules/
 dist/
 android/
-<<<<<<< HEAD
 byedpi-bin/ciadpi.exe
 src-byedpi/
 byedpi-dl/
-=======
->>>>>>> origin/main
+*.jks
+*.keystore

@@ -1,9 +1,21 @@
-name: Build Android + Windows
+name: Build packages
 
 on:
-  workflow_dispatch:
-  push:
-    tags: ['v*']
+  workflow_call:
+    inputs:
+      release:
+        type: boolean
+        default: false
+    secrets:
+      KEYSTORE_BASE64:
+        required: false
+      KEYSTORE_PASS:
+        required: false
+      ALIAS_PASS:
+        required: false
+
+permissions:
+  contents: read
 
 jobs:
   # Сборка движка ByeDPI из исходников (Windows .exe и Android-исполняемые файлы).
@@ -14,7 +26,10 @@ jobs:
       - run: mkdir -p out/win out/android
       - name: Исходники ByeDPI
         continue-on-error: true
-        run: git clone --depth 1 https://github.com/hufrea/byedpi src-byedpi
+        run: |
+          git init src-byedpi
+          git -C src-byedpi fetch --depth 1 https://github.com/hufrea/byedpi e2684772fbda45f2ff4fc220922a010370534216
+          git -C src-byedpi checkout --detach FETCH_HEAD
       - name: Windows (mingw)
         continue-on-error: true
         run: |
@@ -32,9 +47,9 @@ jobs:
             make clean >/dev/null 2>&1 || rm -f *.o ciadpi
             make -j"$(nproc)" CC="$TC/$1" && mkdir -p "../out/android/$2" && cp ciadpi "../out/android/$2/libciadpi.so"
           }
-          build aarch64-linux-android30-clang arm64-v8a
+          build aarch64-linux-android23-clang arm64-v8a
           build armv7a-linux-androideabi30-clang armeabi-v7a
-          build x86_64-linux-android30-clang x86_64
+          build x86_64-linux-android23-clang x86_64
       - run: find out -type f
       - uses: actions/upload-artifact@v4
         with:
@@ -60,14 +75,14 @@ jobs:
         shell: pwsh
         run: |
           if (Test-Path byedpi-dl/win/ciadpi.exe) { Copy-Item byedpi-dl/win/ciadpi.exe byedpi-bin/ciadpi.exe; Write-Host "ByeDPI встроен" } else { Write-Host "ByeDPI не собран — сборка без него" }
-      - run: npm install
-      - run: npm run build:web
+      - run: npm ci
+      - run: python tools/build.py
       - run: npm run dist:win
       - uses: actions/upload-artifact@v4
         with:
           name: WarpProtonAWG-windows
-          path: |
-            dist/*.exe
+          path: dist/*.exe
+          if-no-files-found: error
 
   android:
     needs: byedpi
@@ -85,8 +100,8 @@ jobs:
         with:
           name: byedpi-bin
           path: byedpi-dl
-      - run: npm install
-      - run: npm run build:web
+      - run: npm ci
+      - run: python tools/build.py
       - run: npx cap add android
       - name: Нативный плагин (прокси + ByeDPI) и OkHttp
         run: |
@@ -109,11 +124,43 @@ jobs:
           sed -i 's#</application>#    <service android:name="com.local.protonawg.DpiService" android:exported="false" android:foregroundServiceType="specialUse">\n            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="local_socks_proxy" />\n        </service>\n    </application>#' $f
           sed -i '0,/<application/s#<application#<application android:requestLegacyExternalStorage="true" android:extractNativeLibs="true"#' $f
           grep -n "STORAGE\|extractNativeLibs\|DpiService\|FOREGROUND\|POST_NOTIF" $f
+      - name: Set Android version from package.json
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const { version } = JSON.parse(fs.readFileSync('package.json'));
+          if (!/^\d+\.\d{1,2}\.\d{1,2}$/.test(version)) throw new Error('Expected major.minor.patch with minor and patch below 100');
+          const [major, minor, patch] = version.split('.').map(Number);
+          const code = major * 10000 + minor * 100 + patch;
+          const file = 'android/app/build.gradle';
+          const original = fs.readFileSync(file, 'utf8');
+          if (!/^        versionCode 1$/m.test(original) || !/^        versionName "1.0"$/m.test(original)) throw new Error('Unexpected Capacitor version defaults');
+          fs.writeFileSync(file, original.replace('versionCode 1', 'versionCode ' + code).replace('versionName "1.0"', 'versionName "' + version + '"'));
+          JS
       - run: npx cap sync android
-      - name: Build debug APK
+      - name: Build APK
         working-directory: android
-        run: ./gradlew assembleDebug
+        run: ./gradlew :app:${{ inputs.release && 'assembleRelease' || 'assembleDebug' }}
+      - name: Sign and verify release APK
+        if: inputs.release
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
+          ALIAS_PASS: ${{ secrets.ALIAS_PASS }}
+        run: |
+          set -euo pipefail
+          : "${KEYSTORE_BASE64:?Missing KEYSTORE_BASE64}" "${KEYSTORE_PASS:?Missing KEYSTORE_PASS}" "${ALIAS_PASS:?Missing ALIAS_PASS}"
+          umask 077
+          keystore=$(mktemp "${RUNNER_TEMP}/signing.XXXXXX")
+          trap 'rm -f "$keystore"' EXIT
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          signer=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
+          "$signer" sign --ks "$keystore" --ks-key-alias VladConvGen \
+            --ks-pass env:KEYSTORE_PASS --key-pass env:ALIAS_PASS \
+            --out WarpProtonAWG-release.apk android/app/build/outputs/apk/release/app-release-unsigned.apk
+          "$signer" verify --verbose --print-certs WarpProtonAWG-release.apk
       - uses: actions/upload-artifact@v4
         with:
           name: WarpProtonAWG-android
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ inputs.release && 'WarpProtonAWG-release.apk' || 'android/app/build/outputs/apk/debug/app-debug.apk' }}
+          if-no-files-found: error

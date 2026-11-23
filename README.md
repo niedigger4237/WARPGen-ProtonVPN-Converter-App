@@ -18,11 +18,19 @@
 
 ## Сборка установочных файлов (самый простой путь)
 
-1. Создайте пустой репозиторий на GitHub и загрузите в него содержимое этой папки.
-2. **Actions → Build Android + Windows → Run workflow**.
-3. Через 5–10 минут скачайте артефакты:
-   - `WarpProtonAWG-windows` — `WarpProtonAWG-portable-2.1.0.exe` (без установки) и `WarpProtonAWG-setup-2.1.0.exe`;
-   - `WarpProtonAWG-android` — `app-debug.apk` (разрешите установку из неизвестных источников).
+**Actions → Preview** собирает debug APK и два EXE (portable и установщик). Запускается вручную, для PR в main и при push в main или preview-build. Файлы доступны в Artifacts.
+
+**Actions → Release** собирает APK с release-подписью и Windows EXE. При ручном запуске файлы доступны в Artifacts. При отправке тега `v*` они также прикрепляются к GitHub Release.
+
+В Settings → Secrets and variables → Actions добавьте секреты репозитория:
+
+| Секрет | Значение |
+| --- | --- |
+| `KEYSTORE_BASE64` | Содержимое существующего keystore в Base64 |
+| `KEYSTORE_PASS` | Пароль keystore |
+| `ALIAS_PASS` | Пароль приватного ключа с alias `VladConvGen` |
+
+Для обновления установленного release APK используйте тот же ключ. Перед выпуском новой версии обновите версию npm-пакета и lock-файл, например через `npm version patch --no-git-tag-version`. Сборка использует эту версию для APK и EXE.
 
 ## Локальная сборка
 
