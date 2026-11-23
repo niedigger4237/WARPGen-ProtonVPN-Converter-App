@@ -6,6 +6,9 @@ on:
       release:
         type: boolean
         default: false
+      version:
+        type: string
+        default: ''
     secrets:
       KEYSTORE_BASE64:
         required: false
@@ -29,6 +32,8 @@ jobs:
         with:
           fetch-depth: 0
       - id: version
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
         run: python3 tools/version.py --ci-build-code ${{ inputs.release && '--release' || '' }}
 
   # Сборка движка ByeDPI из исходников (Windows .exe и Android-исполняемые файлы).
