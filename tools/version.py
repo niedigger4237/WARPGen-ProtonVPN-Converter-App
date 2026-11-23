@@ -12,6 +12,9 @@ TAG = re.compile(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]?)(?:\.(0|[1-9][0-9]?))?")
 
 
 def resolve_tag(release):
+    explicit = os.environ.get('RELEASE_VERSION', '').strip()
+    if explicit:
+        return explicit
     if os.environ.get("GITHUB_REF_TYPE") == "tag":
         return os.environ["GITHUB_REF_NAME"]
     command = ["git", "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*"]
