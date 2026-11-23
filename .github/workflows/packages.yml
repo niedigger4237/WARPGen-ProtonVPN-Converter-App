@@ -29,7 +29,7 @@ jobs:
         with:
           fetch-depth: 0
       - id: version
-        run: python3 tools/version.py ${{ inputs.release && '--release' || '' }}
+        run: python3 tools/version.py --ci-build-code ${{ inputs.release && '--release' || '' }}
 
   # Сборка движка ByeDPI из исходников (Windows .exe и Android-исполняемые файлы).
   byedpi:
