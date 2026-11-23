@@ -10,7 +10,6 @@
 | --- | --- | --- |
 | Android 6.0+ | APK и актуальный Android System WebView | Все три вкладки, системный выбор файлов и папок, управление ByeDPI из уведомления |
 | Windows x64 | `WarpProtonAWG-setup-*.exe` для установки или `WarpProtonAWG-portable-*.exe` для запуска без установки | Все три вкладки, системные диалоги сохранения и управление ByeDPI из трея |
-| Браузер | Файл [www/index.html](www/index.html) из скачанного проекта | Офлайн-конвертер Proton, копирование и скачивание результатов. Регистрация WARP и запуск ByeDPI доступны в приложении |
 
 Подписанный APK и оба EXE публикуются в [Releases](https://github.com/niedigger4237/WARPGen-ProtonVPN-Converter-App/releases). Для проверки изменений откройте успешный запуск [Preview](https://github.com/niedigger4237/WARPGen-ProtonVPN-Converter-App/actions/workflows/preview.yml) и скачайте в разделе **Artifacts** архив `WarpProtonAWG-android` или `WarpProtonAWG-windows`. В Android-архиве Preview лежит debug APK.
 
