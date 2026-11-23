@@ -1,6 +1,7 @@
 package com.local.protonawg;
 
-import android.app.Activity;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -18,7 +19,7 @@ import java.io.IOException;
 import java.util.Collections;
 import org.json.JSONObject;
 
-public final class MainActivity extends Activity {
+public final class MainActivity extends AppCompatActivity {
     static final int SAVE = 1;
     private static final int OPEN = 2;
     private static final String ORIGIN = "https://localhost";
@@ -27,6 +28,7 @@ public final class MainActivity extends Activity {
     private ValueCallback<Uri[]> files;
 
     @Override public void onCreate(Bundle state) {
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
         super.onCreate(state);
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
             TextView notice = new TextView(this);
