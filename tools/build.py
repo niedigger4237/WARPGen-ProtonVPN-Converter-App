@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Собирает www/index.html из частей в tools/ (без сети)."""
-import json, pathlib
+import json, pathlib, re
 root = pathlib.Path(__file__).parent
 rd = lambda n: (root/n).read_text(encoding='utf-8')
 
@@ -23,7 +23,8 @@ for k, v in {
     '__DPI_JS__': rd('parts_dpi.js'),
 }.items():
     t = t.replace(k, v)
-assert '__' not in ''.join(c for c in [x for x in ['__CSS__','__WARP_JS__','__PROTON_JS__','__QUIC__'] if x in t]), 'не все плейсхолдеры заменены'
+left = sorted(set(re.findall(r'__[A-Z0-9_]+__', t)))
+assert not left, f'не все плейсхолдеры заменены: {left}'
 out = root.parent/'www'/'index.html'
 out.parent.mkdir(exist_ok=True)
 out.write_text(t, encoding='utf-8')
