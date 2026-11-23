@@ -32,33 +32,31 @@ jobs:
         run: python3 tools/version.py ${{ inputs.release && '--release' || '' }}
 
   # Сборка движка ByeDPI из исходников (Windows .exe и Android-исполняемые файлы).
-  # Каждый шаг необязателен: если сборка не удалась, приложение собирается без встроенного ByeDPI.
   byedpi:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - run: mkdir -p out/win out/android
       - name: Исходники ByeDPI
-        continue-on-error: true
         run: |
           git init src-byedpi
           git -C src-byedpi fetch --depth 1 https://github.com/hufrea/byedpi e2684772fbda45f2ff4fc220922a010370534216
           git -C src-byedpi checkout --detach FETCH_HEAD
       - name: Windows (mingw)
-        continue-on-error: true
         run: |
           sudo apt-get update -y && sudo apt-get install -y gcc-mingw-w64-x86-64
           cd src-byedpi
           make windows CC=x86_64-w64-mingw32-gcc
           cp ciadpi.exe ../out/win/
       - name: Android (NDK)
-        continue-on-error: true
         run: |
           NDK="${ANDROID_NDK_LATEST_HOME:-$ANDROID_NDK_HOME}"
           TC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
           cd src-byedpi
           build() {  # <компилятор> <abi>
-            make clean >/dev/null 2>&1 || rm -f *.o ciadpi
-            make -j"$(nproc)" CC="$TC/$1" && mkdir -p "../out/android/$2" && cp ciadpi "../out/android/$2/libciadpi.so"
+            make clean
+            make -j"$(nproc)" CC="$TC/$1" CPPFLAGS="-D_DEFAULT_SOURCE -include $GITHUB_WORKSPACE/tools/byedpi/android_ifaddrs.h"
+            install -Dm755 ciadpi "../out/android/$2/libciadpi.so"
           }
           build aarch64-linux-android23-clang arm64-v8a
           build armv7a-linux-androideabi23-clang armeabi-v7a
@@ -68,7 +66,7 @@ jobs:
         with:
           name: byedpi-bin
           path: out
-          if-no-files-found: warn
+          if-no-files-found: error
 
   windows:
     needs: [version, byedpi]
@@ -80,14 +78,13 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - uses: actions/download-artifact@v4
-        continue-on-error: true
         with:
           name: byedpi-bin
           path: byedpi-dl
       - name: Положить ciadpi.exe в сборку
         shell: pwsh
         run: |
-          if (Test-Path byedpi-dl/win/ciadpi.exe) { Copy-Item byedpi-dl/win/ciadpi.exe byedpi-bin/ciadpi.exe; Write-Host "ByeDPI встроен" } else { Write-Host "ByeDPI не собран — сборка без него" }
+          Copy-Item byedpi-dl/win/ciadpi.exe byedpi-bin/ciadpi.exe -ErrorAction Stop
       - run: npm ci
       - run: python tools/build.py
       - name: Set Windows package version
@@ -96,6 +93,12 @@ jobs:
         run: npm pkg set "version=$env:BUILD_VERSION"
         shell: pwsh
       - run: npm run dist:win
+      - name: Check packaged Windows engine
+        shell: pwsh
+        run: |
+          $engine = Get-Item dist/win-unpacked/resources/byedpi/ciadpi.exe -ErrorAction Stop
+          if ($engine.Length -eq 0) { throw "Empty packaged ByeDPI executable" }
+          & $engine.FullName --version
       - uses: actions/upload-artifact@v4
         with:
           name: WarpProtonAWG-windows
@@ -115,19 +118,26 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 21 }
       - uses: actions/download-artifact@v4
-        continue-on-error: true
         with:
           name: byedpi-bin
           path: byedpi-dl
       - run: python tools/build.py
       - name: Include Android ByeDPI binaries
         run: |
-          if [ -d byedpi-dl/android ]; then
-            cp -r byedpi-dl/android android/app/src/main/jniLibs
-          fi
+          cp -r byedpi-dl/android android/app/src/main/jniLibs
       - name: Build APK
         working-directory: android
         run: ./gradlew :app:${{ inputs.release && 'assembleRelease' || 'assembleDebug' }}
+      - name: Verify ByeDPI inside APK
+        env:
+          APK: ${{ inputs.release && 'release/app-release-unsigned.apk' || 'debug/app-debug.apk' }}
+        run: |
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            path="lib/$abi/libciadpi.so"
+            unzip -p "android/app/build/outputs/apk/$APK" "$path" > "$RUNNER_TEMP/byedpi-$abi"
+            test -s "$RUNNER_TEMP/byedpi-$abi"
+            file "$RUNNER_TEMP/byedpi-$abi"
+          done
       - name: Sign and verify release APK
         if: inputs.release
         env:
