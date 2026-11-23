@@ -127,10 +127,10 @@ jobs:
           cp -r byedpi-dl/android android/app/src/main/jniLibs
       - name: Build APK
         working-directory: android
-        run: ./gradlew :app:${{ inputs.release && 'assembleRelease' || 'assembleDebug' }}
+        run: ./gradlew :app:assembleRelease
       - name: Verify ByeDPI inside APK
         env:
-          APK: ${{ inputs.release && 'release/app-release-unsigned.apk' || 'debug/app-debug.apk' }}
+          APK: release/app-release-unsigned.apk
         run: |
           for abi in arm64-v8a armeabi-v7a x86_64; do
             path="lib/$abi/libciadpi.so"
@@ -138,8 +138,7 @@ jobs:
             test -s "$RUNNER_TEMP/byedpi-$abi"
             file "$RUNNER_TEMP/byedpi-$abi"
           done
-      - name: Sign and verify release APK
-        if: inputs.release
+      - name: Sign and verify APK
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
@@ -154,10 +153,10 @@ jobs:
           signer=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
           "$signer" sign --ks "$keystore" --ks-key-alias VladConvGen \
             --ks-pass env:KEYSTORE_PASS --key-pass env:ALIAS_PASS \
-            --out WarpProtonAWG-release.apk android/app/build/outputs/apk/release/app-release-unsigned.apk
-          "$signer" verify --verbose --print-certs WarpProtonAWG-release.apk
+            --out WarpProtonAWG-signed.apk android/app/build/outputs/apk/release/app-release-unsigned.apk
+          "$signer" verify --verbose --print-certs WarpProtonAWG-signed.apk
       - uses: actions/upload-artifact@v4
         with:
           name: WarpProtonAWG-android
-          path: ${{ inputs.release && 'WarpProtonAWG-release.apk' || 'android/app/build/outputs/apk/debug/app-debug.apk' }}
+          path: WarpProtonAWG-signed.apk
           if-no-files-found: error
