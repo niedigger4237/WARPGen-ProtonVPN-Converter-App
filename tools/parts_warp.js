@@ -36,17 +36,10 @@
   }
   async function apiCall(method, endpoint, body, token) {
     const proxy = await proxyValue();
-    // Windows: запрос выполняет основной процесс Electron; Android: нативный плагин (прокси) или CapacitorHttp; иначе обычный fetch
     if (window.warpBridge) return window.warpBridge.request(method, endpoint, body || null, token || null, proxy);
     const headers = { 'User-Agent': 'CloudflareWarp/1.0', 'Content-Type': 'application/json' };
     if (token) headers.Authorization = `Bearer ${token}`;
-    const cap = window.Capacitor;
-    if (proxy) {
-      if (!(cap && cap.Plugins && cap.Plugins.WarpHttp)) throw new Error('Прокси работает только в приложении для Android и Windows');
-      const r = await cap.Plugins.WarpHttp.request({ url: API + endpoint, method, headers, body: body ? JSON.stringify(body) : '', proxy });
-      if (r.status < 200 || r.status >= 300) throw new Error(`HTTP ${r.status}: ${String(r.data).slice(0, 160)}`);
-      try { return JSON.parse(r.data); } catch { throw new Error('Некорректный ответ сервера: ' + String(r.data).slice(0, 120)); }
-    }
+    if (proxy) throw new Error('Прокси работает только в приложении для Android и Windows');
     const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 20000);
     try {
       const r = await fetch(API + endpoint, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: ctl.signal });

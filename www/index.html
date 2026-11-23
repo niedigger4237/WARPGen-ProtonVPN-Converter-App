@@ -764,41 +764,63 @@ const X25519 = (() => {
 </script>
 <script>
 "use strict";
+// Injected by the Android WebView only for the bundled top-level page.
+if (window.AndroidHost) {
+  const pending = new Map();
+  let sequence = 0;
+  AndroidHost.onmessage = ({data}) => {
+    const message = JSON.parse(data);
+    const call = pending.get(message.id);
+    if (!call) return;
+    pending.delete(message.id);
+    if ('error' in message) call.reject(new Error(message.error));
+    else call.resolve(message.result);
+  };
+  function invoke(method, args = {}) {
+    return new Promise((resolve, reject) => {
+      const id = ++sequence;
+      pending.set(id, {resolve, reject});
+      try { AndroidHost.postMessage(JSON.stringify({id, method, args})); }
+      catch (error) { pending.delete(id); reject(error); }
+    });
+  }
+  window.warpBridge = {
+    platform: 'android',
+    async request(method, endpoint, body, token, proxy) {
+      const headers = {'User-Agent': 'CloudflareWarp/1.0'};
+      if (token) headers.Authorization = 'Bearer ' + token;
+      const r = await invoke('request', {
+        url: 'https://api.cloudflareclient.com/v0i1909051800/' + endpoint,
+        method, headers, proxy: proxy || '', body: body ? JSON.stringify(body) : ''
+      });
+      if (r.status < 200 || r.status >= 300) throw new Error('HTTP ' + r.status + ': ' + r.data.slice(0, 160));
+      return JSON.parse(r.data);
+    },
+    async saveFiles(files) {
+      const args = {files: files.map(f => ({name: f.fileName, text: f.text}))};
+      try { return await invoke('saveFiles', args); }
+      catch { return invoke('shareFiles', args); }
+    },
+    dpi: {
+      available: async () => (await invoke('dpiAvailable')).available,
+      start: (args, port, notify, text) => invoke('dpiStart', {args, port, notify, text}),
+      stop: () => invoke('dpiStop'),
+      status: () => invoke('dpiStatus'),
+      probe: (url, port, timeout) => invoke('dpiProbe', {url, port, timeout})
+    }
+  };
+}
+
 /* ---------- общие функции оболочки ---------- */
 function AppToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(AppToast.t); AppToast.t=setTimeout(()=>t.classList.remove('on'),2400); }
 
-// Сохранение на устройство: Windows и Android — системный выбор места (запасной вариант Android: «Документы/WarpProtonAWG»), браузер — скачивание
+// Сохранение на устройство: Windows и Android — системный выбор места, браузер — скачивание
 async function AppSave(files, title){
   if (window.warpBridge && window.warpBridge.saveFiles){
     try {
       const r = await window.warpBridge.saveFiles(files.map(f=>({fileName:f.fileName, text:f.text})));
-      if (r && !r.canceled) AppToast(r.count>1 ? `Сохранено файлов: ${r.count}` : 'Файл сохранён');
+      if (r && !r.canceled && !r.shared) AppToast(r.count>1 ? `Сохранено файлов: ${r.count}` : 'Файл сохранён');
     } catch(e){ AppToast('Не удалось сохранить: ' + (e.message||e)); }
-    return;
-  }
-  const cap = window.Capacitor;
-  if (cap && cap.isNativePlatform && cap.isNativePlatform()){
-    const {Filesystem, Share} = cap.Plugins;
-    // Сначала — системный выбор места сохранения (файл или папка)
-    try {
-      const r = await cap.Plugins.WarpHttp.saveFiles({files: files.map(f=>({name:f.fileName, text:f.text}))});
-      if (r && r.canceled) return;
-      AppToast(r.count>1 ? `Сохранено файлов: ${r.count}` : 'Файл сохранён');
-      return;
-    } catch(e){ /* нет плагина или ошибка — пробуем запасной вариант */ }
-    try {
-      try { await Filesystem.requestPermissions(); } catch(e){}
-      for (const f of files)
-        await Filesystem.writeFile({path:'WarpProtonAWG/'+f.fileName, data:f.text, directory:'DOCUMENTS', encoding:'utf8', recursive:true});
-      AppToast(files.length>1 ? `Сохранено в Документы/WarpProtonAWG: ${files.length} файлов` : `Сохранено: Документы/WarpProtonAWG/${files[0].fileName}`);
-    } catch(e){
-      // запасной вариант, если запись в «Документы» запрещена системой
-      try {
-        const uris = [];
-        for (const f of files){ const r = await Filesystem.writeFile({path:f.fileName, data:f.text, directory:'CACHE', encoding:'utf8'}); uris.push(r.uri); }
-        await Share.share({title:title||'Конфиг', files:uris, dialogTitle:'Сохранить файл'});
-      } catch(e2){ if (!/cancel/i.test(String(e2))) AppToast('Не удалось сохранить: ' + (e2.message||e2)); }
-    }
     return;
   }
   files.forEach((f,i)=>setTimeout(()=>{
@@ -864,17 +886,10 @@ async function AppSave(files, title){
   }
   async function apiCall(method, endpoint, body, token) {
     const proxy = await proxyValue();
-    // Windows: запрос выполняет основной процесс Electron; Android: нативный плагин (прокси) или CapacitorHttp; иначе обычный fetch
     if (window.warpBridge) return window.warpBridge.request(method, endpoint, body || null, token || null, proxy);
     const headers = { 'User-Agent': 'CloudflareWarp/1.0', 'Content-Type': 'application/json' };
     if (token) headers.Authorization = `Bearer ${token}`;
-    const cap = window.Capacitor;
-    if (proxy) {
-      if (!(cap && cap.Plugins && cap.Plugins.WarpHttp)) throw new Error('Прокси работает только в приложении для Android и Windows');
-      const r = await cap.Plugins.WarpHttp.request({ url: API + endpoint, method, headers, body: body ? JSON.stringify(body) : '', proxy });
-      if (r.status < 200 || r.status >= 300) throw new Error(`HTTP ${r.status}: ${String(r.data).slice(0, 160)}`);
-      try { return JSON.parse(r.data); } catch { throw new Error('Некорректный ответ сервера: ' + String(r.data).slice(0, 120)); }
-    }
+    if (proxy) throw new Error('Прокси работает только в приложении для Android и Windows');
     const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 20000);
     try {
       const r = await fetch(API + endpoint, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: ctl.signal });
@@ -1131,12 +1146,7 @@ async function AppSave(files, title){
   function backend() {
     if (window.warpBridge && window.warpBridge.dpi) {
       const d = window.warpBridge.dpi;
-      return { win: true, available: () => d.available(), start: (a, p, n, t) => d.start(a, p, n, t), stop: () => d.stop(), status: () => d.status(), probe: (u, p, t, r) => d.probe(u, p, t, r) };
-    }
-    const c = window.Capacitor;
-    if (c && c.isNativePlatform && c.isNativePlatform() && c.Plugins && c.Plugins.WarpHttp && c.Plugins.WarpHttp.dpiStart) {
-      const w = c.Plugins.WarpHttp;
-      return { win: false, available: async () => !!(await w.dpiAvailable()).available, start: (a, p, n, t) => w.dpiStart({ args: a, port: p, notify: !!n, text: t || '' }), stop: () => w.dpiStop(), status: () => w.dpiStatus(), probe: (u, p, t) => w.dpiProbe({ url: u, port: p, timeout: t }) };
+      return { win: window.warpBridge.platform !== 'android', available: () => d.available(), start: (a, p, n, t) => d.start(a, p, n, t), stop: () => d.stop(), status: () => d.status(), probe: (u, p, t, r) => d.probe(u, p, t, r) };
     }
     return null;
   }

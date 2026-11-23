@@ -24,7 +24,7 @@ public class DpiService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && "STOP".equals(intent.getAction())) {
-            WarpHttpPlugin.killDpiStatic();
+            NativeActions.killDpiStatic();
             stopForeground(true);
             stopSelf();
             return START_NOT_STICKY;

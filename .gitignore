@@ -1,9 +1,11 @@
 node_modules/
 dist/
-android/
-<<<<<<< HEAD
+android/.gradle/
+android/**/build/
+android/local.properties
+android/app/src/main/jniLibs/
 byedpi-bin/ciadpi.exe
 src-byedpi/
 byedpi-dl/
-=======
->>>>>>> origin/main
+*.jks
+*.keystore

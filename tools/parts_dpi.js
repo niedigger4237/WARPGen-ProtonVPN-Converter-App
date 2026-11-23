@@ -36,12 +36,7 @@
   function backend() {
     if (window.warpBridge && window.warpBridge.dpi) {
       const d = window.warpBridge.dpi;
-      return { win: true, available: () => d.available(), start: (a, p, n, t) => d.start(a, p, n, t), stop: () => d.stop(), status: () => d.status(), probe: (u, p, t, r) => d.probe(u, p, t, r) };
-    }
-    const c = window.Capacitor;
-    if (c && c.isNativePlatform && c.isNativePlatform() && c.Plugins && c.Plugins.WarpHttp && c.Plugins.WarpHttp.dpiStart) {
-      const w = c.Plugins.WarpHttp;
-      return { win: false, available: async () => !!(await w.dpiAvailable()).available, start: (a, p, n, t) => w.dpiStart({ args: a, port: p, notify: !!n, text: t || '' }), stop: () => w.dpiStop(), status: () => w.dpiStatus(), probe: (u, p, t) => w.dpiProbe({ url: u, port: p, timeout: t }) };
+      return { win: window.warpBridge.platform !== 'android', available: () => d.available(), start: (a, p, n, t) => d.start(a, p, n, t), stop: () => d.stop(), status: () => d.status(), probe: (u, p, t, r) => d.probe(u, p, t, r) };
     }
     return null;
   }
