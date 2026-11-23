@@ -13,7 +13,7 @@ android {
     namespace 'com.local.protonawg'
     compileSdk 35
     defaultConfig {
-        applicationId 'com.local.protonawg'
+        applicationId 'com.niefigger.convgen'
         minSdk 23
         targetSdk 35
         versionName taggedName.orElse(localVersion.map { it.name }).get()
