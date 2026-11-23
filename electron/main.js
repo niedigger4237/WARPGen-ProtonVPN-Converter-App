@@ -130,10 +130,12 @@ ipcMain.handle('dpi:start', async (_e, { args, port, notify: wantNotify, text })
   if (wantNotify) { const t = String(text || `socks5://127.0.0.1:${port}`).slice(0, 200); showTray(t); notify('ByeDPI запущен', t); }
   return { running: true };
 });
-// Проверка доступности сайта через локальный SOCKS5: достаточно получить любой HTTP-ответ по HTTPS
-ipcMain.handle('dpi:probe', async (_e, { url, port, timeout, round }) => {
+// Проверка доступности сайта через локальный SOCKS5: достаточно получить любой HTTP-ответ по HTTPS.
+// Каждая проверка идёт в своей сессии: иначе closeAllConnections() первой завершившейся проверки обрывала бы параллельные.
+let probeSeq = 0;
+ipcMain.handle('dpi:probe', async (_e, { url, port, timeout }) => {
   if (!/^https:\/\/[a-z0-9.-]+\/$/i.test(url) || !Number.isInteger(port)) throw new Error('Недопустимый запрос');
-  const ses = session.fromPartition(`dpi-${port}-${String(round).replace(/[^0-9a-z-]/gi, '')}`);
+  const ses = session.fromPartition(`dpi-${port}-${++probeSeq}`);
   await ses.setProxy({ proxyRules: `socks5://127.0.0.1:${port}` });
   const t0 = Date.now();
   return new Promise(resolve => {
