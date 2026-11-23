@@ -5,7 +5,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, preview-build]
+    branches: [main, preview-build, theme]
 
 permissions:
   contents: read
@@ -13,3 +13,7 @@ permissions:
 jobs:
   build:
     uses: ./.github/workflows/packages.yml
+    secrets:
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
+      ALIAS_PASS: ${{ secrets.ALIAS_PASS }}
