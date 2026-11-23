@@ -12,6 +12,7 @@ warp_js = rd('parts_warp.js').replace('__WARPDATA__', json.dumps(json.loads(rd('
 
 t = rd('template.html')
 for k, v in {
+    '__ANDROID_BRIDGE__': rd('android_bridge.js'),
     '__CSS__': rd('parts_css.css'),
     '__WARP_HTML__': rd('parts_warp.html'),
     '__PROTON_HTML__': rd('parts_proton.html'),

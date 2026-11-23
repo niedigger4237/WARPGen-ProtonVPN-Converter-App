@@ -1,7 +1,7 @@
 {
   "name": "warp-proton-awg",
   "productName": "WARP + Proton AWG",
-  "version": "2.1.0",
+  "version": "1.0.0",
   "description": "WARP-генератор и Proton → AmneziaWG конвертер для Android и Windows",
   "main": "electron/main.js",
   "author": "local",
@@ -9,18 +9,9 @@
   "scripts": {
     "build:web": "python3 tools/build.py",
     "start": "electron .",
-    "dist:win": "electron-builder --win portable nsis --x64 --publish never",
-    "android:init": "cap add android && cap sync android",
-    "android:sync": "cap sync android"
-  },
-  "dependencies": {
-    "@capacitor/android": "^7.0.0",
-    "@capacitor/core": "^7.0.0",
-    "@capacitor/filesystem": "^7.0.0",
-    "@capacitor/share": "^7.0.0"
+    "dist:win": "electron-builder --win portable nsis --x64 --publish never"
   },
   "devDependencies": {
-    "@capacitor/cli": "^7.0.0",
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8"
   },

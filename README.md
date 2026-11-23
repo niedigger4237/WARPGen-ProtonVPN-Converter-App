@@ -30,7 +30,7 @@
 | `KEYSTORE_PASS` | Пароль keystore |
 | `ALIAS_PASS` | Пароль приватного ключа с alias `VladConvGen` |
 
-Для обновления установленного release APK используйте тот же ключ. Перед выпуском новой версии обновите версию npm-пакета и lock-файл, например через `npm version patch --no-git-tag-version`. Сборка использует эту версию для APK и EXE.
+Для обновления установленного release APK используйте тот же ключ. Версию выпуска задаёт Git-тег вида `v1.0`, `v1.1` или `v1.1.1`. Для `v1.0` APK получит versionName `1.0` и versionCode `30101`, Windows — `1.0.0`. Preview берёт ближайший достижимый тег, а до первого тега — `1.0`. Для ручной Release-сборки выберите тег либо ветку, вершина которой помечена тегом.
 
 ## Локальная сборка
 
@@ -42,8 +42,8 @@ npm run build:web        # собирает www/index.html из tools/
 npm start                # запуск Windows-версии для проверки
 npm run dist:win         # (на Windows) -> dist/*.exe
 
-npm run android:init     # создаёт папку android/ (один раз)
-cd android && ./gradlew assembleDebug    # JDK 21 + Android SDK
+# Android — JDK 21, Android SDK 35 и Python 3
+cd android && ./gradlew assembleDebug    # на Windows: gradlew.bat assembleDebug
 # APK: android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
@@ -55,7 +55,7 @@ cd android && ./gradlew assembleDebug    # JDK 21 + Android SDK
 - `tools/parts_warp.*` — вкладка WARP; `tools/warp_data.json` — I1-пакеты, списки IP сервисов, порты, домены;
 - `tools/parts_proton.*` — вкладка Proton; `tools/x25519.js` — генерация ключей WireGuard;
 - `tools/template.html` + `tools/build.py` — оболочка и сборка единого `www/index.html`;
-- `electron/` — Windows (запросы к Cloudflare идут через основной процесс); `capacitor.config.json` — Android (нативный HTTP).
+- `electron/` — Windows (запросы к Cloudflare идут через основной процесс); `android/app/src/main/AndroidManifest.xml` — разрешения и компоненты Android; Java-код рядом в каталоге `java/` реализует WebView, нативный HTTP, импорт/экспорт файлов и ByeDPI.
 
 ## Безопасность
 

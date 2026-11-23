@@ -62,41 +62,17 @@ __X25519__
 </script>
 <script>
 "use strict";
+__ANDROID_BRIDGE__
 /* ---------- общие функции оболочки ---------- */
 function AppToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(AppToast.t); AppToast.t=setTimeout(()=>t.classList.remove('on'),2400); }
 
-// Сохранение на устройство: Windows и Android — системный выбор места (запасной вариант Android: «Документы/WarpProtonAWG»), браузер — скачивание
+// Сохранение на устройство: Windows и Android — системный выбор места, браузер — скачивание
 async function AppSave(files, title){
   if (window.warpBridge && window.warpBridge.saveFiles){
     try {
       const r = await window.warpBridge.saveFiles(files.map(f=>({fileName:f.fileName, text:f.text})));
-      if (r && !r.canceled) AppToast(r.count>1 ? `Сохранено файлов: ${r.count}` : 'Файл сохранён');
+      if (r && !r.canceled && !r.shared) AppToast(r.count>1 ? `Сохранено файлов: ${r.count}` : 'Файл сохранён');
     } catch(e){ AppToast('Не удалось сохранить: ' + (e.message||e)); }
-    return;
-  }
-  const cap = window.Capacitor;
-  if (cap && cap.isNativePlatform && cap.isNativePlatform()){
-    const {Filesystem, Share} = cap.Plugins;
-    // Сначала — системный выбор места сохранения (файл или папка)
-    try {
-      const r = await cap.Plugins.WarpHttp.saveFiles({files: files.map(f=>({name:f.fileName, text:f.text}))});
-      if (r && r.canceled) return;
-      AppToast(r.count>1 ? `Сохранено файлов: ${r.count}` : 'Файл сохранён');
-      return;
-    } catch(e){ /* нет плагина или ошибка — пробуем запасной вариант */ }
-    try {
-      try { await Filesystem.requestPermissions(); } catch(e){}
-      for (const f of files)
-        await Filesystem.writeFile({path:'WarpProtonAWG/'+f.fileName, data:f.text, directory:'DOCUMENTS', encoding:'utf8', recursive:true});
-      AppToast(files.length>1 ? `Сохранено в Документы/WarpProtonAWG: ${files.length} файлов` : `Сохранено: Документы/WarpProtonAWG/${files[0].fileName}`);
-    } catch(e){
-      // запасной вариант, если запись в «Документы» запрещена системой
-      try {
-        const uris = [];
-        for (const f of files){ const r = await Filesystem.writeFile({path:f.fileName, data:f.text, directory:'CACHE', encoding:'utf8'}); uris.push(r.uri); }
-        await Share.share({title:title||'Конфиг', files:uris, dialogTitle:'Сохранить файл'});
-      } catch(e2){ if (!/cancel/i.test(String(e2))) AppToast('Не удалось сохранить: ' + (e2.message||e2)); }
-    }
     return;
   }
   files.forEach((f,i)=>setTimeout(()=>{
