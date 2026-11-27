@@ -27,7 +27,7 @@ private fun asset(name: String): String =
         .bufferedReader(Charsets.UTF_8).use { it.readText() }
 
 fun main() = application {
-    Window(onCloseRequest = ::exitApplication, title = "WARP + Proton AWG",
+    Window(onCloseRequest = ::exitApplication, title = "WP Toolkit",
         icon = painterResource("icon.png"),
         state = rememberWindowState(width = 1000.dp, height = 760.dp)) {
         val scope = rememberCoroutineScope()
@@ -37,24 +37,16 @@ fun main() = application {
         val presets = remember { ProtonPresets(::asset) }
         var sources by remember { mutableStateOf<List<ProtonParser.Source>>(emptyList()) }
         var tab by remember { mutableStateOf(0) }
-        val preferences = remember { PortableSettings.open() }
-        var theme by remember { mutableStateOf(preferences.loadTheme()) }
         var message by remember { mutableStateOf("") }
-        val dark = when(theme) { "Dark" -> true; "Light" -> false; else -> isSystemInDarkTheme() }
+        val dark = isSystemInDarkTheme()
         val files = DesktopFiles(window, scope, { sources = it }, { message = it })
         MaterialTheme(colorScheme = if (dark) darkColorScheme() else lightColorScheme()) {
             Surface(Modifier.fillMaxSize()) {
                 Row(Modifier.fillMaxSize()) {
-                    Column(Modifier.width(190.dp).fillMaxHeight().padding(12.dp),
+                    Column(Modifier.width(230.dp).fillMaxHeight().padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("WARP + Proton", style = MaterialTheme.typography.titleLarge)
-                        NavigationDrawerItem(label = { Text("WARP") }, selected = tab == 0, onClick = { tab = 0 })
-                        NavigationDrawerItem(label = { Text("Proton VPN") }, selected = tab == 1, onClick = { tab = 1 })
-                        Spacer(Modifier.weight(1f))
-                        TextButton(onClick = {
-                            theme = when(theme) { "System" -> "Light"; "Light" -> "Dark"; else -> "System" }
-                            if (!preferences.saveTheme(theme)) message = "Unable to save settings in the portable data folder"
-                        }) { Text("Theme: $theme") }
+                        NavigationDrawerItem(label = { Text("WARP Generator") }, selected = tab == 0, onClick = { tab = 0 })
+                        NavigationDrawerItem(label = { Text("ProtonVPN Converter") }, selected = tab == 1, onClick = { tab = 1 })
                     }
                     VerticalDivider()
                     Column(Modifier.weight(1f).fillMaxHeight()) {

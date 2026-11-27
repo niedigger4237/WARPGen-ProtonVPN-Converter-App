@@ -19,7 +19,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -115,11 +114,9 @@ class ConverterActivity : ComponentActivity() {
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val prefs = getSharedPreferences("appearance", MODE_PRIVATE)
         setContent {
-            var theme by remember { mutableStateOf(prefs.getString("theme", "System") ?: "System") }
             var tab by rememberSaveable { mutableStateOf(0) }
-            val dark = when (theme) { "Dark" -> true; "Light" -> false; else -> isSystemInDarkTheme() }
+            val dark = isSystemInDarkTheme()
             val context = LocalContext.current
             val colors = if (Build.VERSION.SDK_INT >= 31) {
                 if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -127,16 +124,9 @@ class ConverterActivity : ComponentActivity() {
             MaterialTheme(colorScheme = colors) {
                 Surface(Modifier.fillMaxSize()) {
                     Column(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("WARP + Proton AWG", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp))
-                            TextButton(onClick = {
-                                theme = when (theme) { "System" -> "Light"; "Light" -> "Dark"; else -> "System" }
-                                prefs.edit().putString("theme", theme).apply()
-                            }) { Text(theme) }
-                        }
                         TabRow(selectedTabIndex = tab) {
-                            Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("WARP") })
-                            Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Proton VPN") })
+                            Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("WARP Generator") })
+                            Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("ProtonVPN Converter") })
                         }
                         Box(Modifier.weight(1f).fillMaxWidth()) {
                             val stateHolder = androidx.compose.runtime.saveable.rememberSaveableStateHolder()

@@ -25,7 +25,7 @@ compose.desktop {
     application {
         mainClass = "com.local.protonawg.desktop.MainKt"
         nativeDistributions {
-            packageName = "WarpProtonAWG"
+            packageName = "WPToolkit"
             packageVersion = providers.environmentVariable("DESKTOP_PACKAGE_VERSION").orElse("2.0.0").get()
             modules("java.desktop", "java.net.http", "java.naming", "java.logging", "jdk.crypto.ec")
             windows {
@@ -43,16 +43,16 @@ tasks.withType<Test>().configureEach {
 // Package the application image, not an installer. The bundled runtime travels with the EXE.
 tasks.register<Zip>("portableZip") {
     dependsOn("createDistributable")
-    val image = layout.buildDirectory.dir("compose/binaries/main/app/WarpProtonAWG")
-    from(image) { into("WarpProtonAWG") }
-    from(nativeDll) { into("WarpProtonAWG/app") }
+    val image = layout.buildDirectory.dir("compose/binaries/main/app/WPToolkit")
+    from(image) { into("WPToolkit") }
+    from(nativeDll) { into("WPToolkit/app") }
     destinationDirectory.set(layout.buildDirectory.dir("portable"))
     archiveFileName.set("WarpProtonAWG-${providers.environmentVariable("DESKTOP_VERSION").orElse("2.0.0").get()}-windows-x64.zip")
     isPreserveFileTimestamps = false
     isReproducibleFileOrder = true
     doFirst {
         require(nativeDll.get().asFile.isFile) { "Native ByeDPI DLL missing; build the native target first" }
-        require(image.get().file("WarpProtonAWG.exe").asFile.isFile) { "Windows launcher missing" }
+        require(image.get().file("WPToolkit.exe").asFile.isFile) { "Windows launcher missing" }
         require(image.get().file("runtime/bin/java.dll").asFile.isFile) { "Bundled Java runtime missing" }
     }
 }

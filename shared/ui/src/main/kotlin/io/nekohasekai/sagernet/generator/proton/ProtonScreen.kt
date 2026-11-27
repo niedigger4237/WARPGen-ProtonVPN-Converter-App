@@ -51,7 +51,7 @@ internal fun ProtonScreen(
                 Icon(Icons.Filled.Security, null, Modifier.padding(14.dp).size(28.dp), tint = MaterialTheme.colorScheme.primary)
             }
             Column(Modifier.weight(1f)) {
-                Text("Proton VPN Converter", style = MaterialTheme.typography.headlineSmall)
+                Text("ProtonVPN Converter", style = MaterialTheme.typography.headlineSmall)
                 Text("Convert Proton WireGuard configurations", style = MaterialTheme.typography.bodyMedium)
             }
         }

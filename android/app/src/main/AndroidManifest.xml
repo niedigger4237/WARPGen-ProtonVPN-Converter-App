@@ -5,7 +5,7 @@
     <application
         android:allowBackup="false"
         android:icon="@drawable/icon"
-        android:label="WARP + Proton AWG"
+        android:label="WP Toolkit"
         android:theme="@style/Theme.WarpProton">
         <activity
             android:name=".ConverterActivity"
