@@ -159,3 +159,23 @@ jobs:
           name: WarpProtonAWG-android
           path: WarpProtonAWG-signed.apk
           if-no-files-found: error
+  
+  # Experimental JVM desktop build, isolated from release and the existing Windows package.
+  desktop-preview:
+    if: ${{ github.ref == 'refs/heads/native-desktop' && !inputs.release }}
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Compile and package Compose Desktop
+        shell: pwsh
+        run: .\android\gradlew.bat -p desktop test createDistributable --stacktrace
+      - name: Upload desktop preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: WarpProtonAWG-compose-desktop
+          path: desktop/build/compose/binaries/main/app/
+          if-no-files-found: error

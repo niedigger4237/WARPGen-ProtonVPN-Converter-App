@@ -9,3 +9,5 @@ src-byedpi/
 byedpi-dl/
 *.jks
 *.keystore
+desktop/.gradle/
+desktop/build/
