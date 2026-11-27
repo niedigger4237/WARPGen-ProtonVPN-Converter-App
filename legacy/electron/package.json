@@ -21,7 +21,6 @@
     "files": [
       "electron/**",
       "www/**",
-      "assets/icon.png",
       "package.json"
     ],
     "directories": {
@@ -32,7 +31,7 @@
         "portable",
         "nsis"
       ],
-      "icon": "assets/icon.png"
+      "icon": "../../desktop/src/main/resources/icon.ico"
     },
     "portable": {
       "artifactName": "WarpProtonAWG-portable-${version}.exe"
@@ -48,6 +47,13 @@
         "to": "byedpi",
         "filter": [
           "ciadpi.exe"
+        ]
+      },
+      {
+        "from": "../../desktop/src/main/resources",
+        "to": ".",
+        "filter": [
+          "icon.png"
         ]
       }
     ]

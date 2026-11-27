@@ -86,7 +86,9 @@ const BAD_FLAG = /^(-i|--ip|-p|--port|-I|--conn-ip|-D|--daemon|-w|--pidfile|-E|-
 const OK_TOKEN = /^[-A-Za-z0-9_.,:+=@%]+$/;
 const dpiExe = () => app.isPackaged ? path.join(process.resourcesPath, 'byedpi', 'ciadpi.exe') : path.join(__dirname, '..', 'byedpi-bin', 'ciadpi.exe');
 let dpiProc = null, tray = null, mainWin = null;
-const iconPath = () => path.join(__dirname, '..', 'assets', 'icon.png');
+const iconPath = () => app.isPackaged
+  ? path.join(process.resourcesPath, 'icon.png')
+  : path.join(__dirname, '..', '..', '..', 'desktop', 'src', 'main', 'resources', 'icon.png');
 
 function notify(title, body) { try { if (Notification.isSupported()) new Notification({ title, body, icon: iconPath(), silent: true }).show(); } catch {} }
 function hideTray() { if (tray) { try { tray.destroy(); } catch {} tray = null; } }
@@ -155,7 +157,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1000, height: 800, minWidth: 380, minHeight: 600,
     title: 'WARP + Proton AWG',
-    icon: path.join(__dirname, '..', 'assets', 'icon.png'),
+    icon: iconPath(),
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, preload: path.join(__dirname, 'preload.js') }
   });
   Menu.setApplicationMenu(null);
