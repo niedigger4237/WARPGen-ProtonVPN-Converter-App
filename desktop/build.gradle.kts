@@ -47,7 +47,7 @@ tasks.register<Zip>("portableZip") {
     from(image) { into("WPToolkit") }
     from(nativeDll) { into("WPToolkit/app") }
     destinationDirectory.set(layout.buildDirectory.dir("portable"))
-    archiveFileName.set("WarpProtonAWG-${providers.environmentVariable("DESKTOP_VERSION").orElse("2.0.0").get()}-windows-x64.zip")
+    archiveFileName.set("WPToolkit-${providers.environmentVariable("DESKTOP_VERSION").orElse("2.0.0").get()}-windows-x64.zip")
     isPreserveFileTimestamps = false
     isReproducibleFileOrder = true
     doFirst {

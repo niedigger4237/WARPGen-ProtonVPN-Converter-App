@@ -121,6 +121,7 @@ jobs:
     env:
       VERSION_NAME: ${{ needs.version.outputs.name }}
       VERSION_CODE: ${{ needs.version.outputs.code }}
+      APK_VERSION: ${{ inputs.release && needs.version.outputs.name || format('{0}-preview', needs.version.outputs.name) }}
     needs: [version]
     runs-on: ubuntu-24.04
     steps:
@@ -169,14 +170,15 @@ jobs:
           trap 'rm -f "$keystore"' EXIT
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore"
           signer=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
+          apk="WPToolkit-$APK_VERSION-android.apk"
           "$signer" sign --ks "$keystore" --ks-key-alias VladConvGen \
             --ks-pass env:KEYSTORE_PASS --key-pass env:ALIAS_PASS \
-            --out WarpProtonAWG-signed.apk android/app/build/outputs/apk/release/app-release-unsigned.apk
-          "$signer" verify --verbose --print-certs WarpProtonAWG-signed.apk
+            --out "$apk" android/app/build/outputs/apk/release/app-release-unsigned.apk
+          "$signer" verify --verbose --print-certs "$apk"
       - uses: actions/upload-artifact@v4
         with:
-          name: WarpProtonAWG-android
-          path: WarpProtonAWG-signed.apk
+          name: WPToolkit-android
+          path: WPToolkit-${{ env.APK_VERSION }}-android.apk
           if-no-files-found: error
   
   # Portable Compose Desktop; the old Electron job remains preview-only during migration.
@@ -214,6 +216,6 @@ jobs:
       - name: Upload portable Windows package
         uses: actions/upload-artifact@v4
         with:
-          name: WarpProtonAWG-compose-desktop
+          name: WPToolkit-windows
           path: desktop/build/portable/*.zip
           if-no-files-found: error
