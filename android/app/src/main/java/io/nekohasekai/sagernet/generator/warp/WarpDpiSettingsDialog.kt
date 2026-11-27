@@ -19,8 +19,8 @@ import java.util.UUID
 @Composable
 internal fun WarpDpiSettingsDialog(dismiss: () -> Unit) {
     val context = LocalContext.current
-    val imported = remember(context) { DpiStrategyCatalog.imported(context) }
-    var settings by remember(context) { mutableStateOf(DpiStrategyCatalog.settings(context)) }
+    val imported = remember(context) { AndroidDpiSettings.imported(context) }
+    var settings by remember(context) { mutableStateOf(AndroidDpiSettings.settings(context)) }
     var timeout by remember { mutableStateOf(settings.timeout.toString()) }
     var search by remember { mutableStateOf("") }
     var editing by remember { mutableStateOf<DpiStrategyCatalog.Custom?>(null) }
@@ -90,7 +90,7 @@ internal fun WarpDpiSettingsDialog(dismiss: () -> Unit) {
         },
         confirmButton = {
             TextButton(enabled = seconds != null, onClick = {
-                DpiStrategyCatalog.save(context, settings.copy(timeout = requireNotNull(seconds)), forgetOnSave)
+                AndroidDpiSettings.save(context, settings.copy(timeout = requireNotNull(seconds)), forgetOnSave)
                 dismiss()
             }) { Text("Save") }
         },

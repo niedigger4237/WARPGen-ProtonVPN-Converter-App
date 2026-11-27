@@ -43,10 +43,10 @@ internal class WarpDpiTransport(private val context: Context) {
         calls: RegistrationCalls,
         progress: (Int, Int, DpiStrategySelector.Strategy) -> Unit
     ): WarpRegistration.Account {
-        val settings = DpiStrategyCatalog.settings(context)
+        val settings = AndroidDpiSettings.settings(context)
         return DpiStrategySelector.withWorkingStrategy(
-            DpiStrategyCatalog.available(context, settings),
-            DpiStrategyCatalog.preferred(context, settings),
+            AndroidDpiSettings.available(context, settings),
+            AndroidDpiSettings.preferred(context, settings),
             { strategy ->
                 val engine = NativeByeDpi.open(strategy)
                 try {
@@ -64,7 +64,7 @@ internal class WarpDpiTransport(private val context: Context) {
                 calls.execute(call, WarpApi::readResponse)
             }
             calls.checkCancelled()
-            if (settings.rememberSuccessful) DpiStrategyCatalog.remember(context, match)
+            if (settings.rememberSuccessful) AndroidDpiSettings.remember(context, match)
             result
         }
     }

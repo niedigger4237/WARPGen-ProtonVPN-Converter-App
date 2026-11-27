@@ -5,11 +5,11 @@ test_dir="$(cd "$(dirname "$0")" && pwd)"
 main_dir="$test_dir/../../main"
 native_dir="$main_dir/cpp/warp_dpi"
 shared_native="$test_dir/../../../../../shared/native"
-catalog="$main_dir/java/io/nekohasekai/sagernet/generator/warp/DpiStrategyCatalog.kt"
+catalog="$test_dir/../../../../../shared/core/src/main/kotlin/io/nekohasekai/sagernet/generator/warp/DpiStrategyCatalog.kt"
 output="$(mktemp -d)"
 trap 'rm -rf "$output"' EXIT
 
-python3 - "$catalog" "$main_dir/assets/generator/byedpi-manager/strategies.tsv" > "$output/warp_dpi_test_strategies.h" <<'PY'
+python3 - "$catalog" "$test_dir/../../../../../shared/core/src/main/resources/generator/byedpi-manager/strategies.tsv" > "$output/warp_dpi_test_strategies.h" <<'PY'
 import json
 from pathlib import Path
 import re
