@@ -27,7 +27,6 @@ import androidx.lifecycle.lifecycleScope
 import io.nekohasekai.sagernet.generator.proton.ProtonParser
 import io.nekohasekai.sagernet.generator.proton.ProtonPresets
 import io.nekohasekai.sagernet.generator.proton.ProtonScreen
-import io.nekohasekai.sagernet.generator.proton.ProtonConfExporter as Conf
 import io.nekohasekai.sagernet.generator.warp.WarpScreen
 import io.nekohasekai.sagernet.generator.warp.WarpViewModel
 import io.nekohasekai.sagernet.ktx.CreateExportDocument
