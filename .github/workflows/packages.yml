@@ -162,7 +162,7 @@ jobs:
   
   # Experimental JVM desktop build, isolated from release and the existing Windows package.
   desktop-preview:
-    if: ${{ github.ref == 'refs/heads/native-desktop' && !inputs.release }}
+    if: ${{ github.ref == 'refs/heads/native-shared' && !inputs.release }}
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
