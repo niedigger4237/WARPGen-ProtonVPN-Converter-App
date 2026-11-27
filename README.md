@@ -1,5 +1,7 @@
 # WARP + Proton AWG
 
+<img src="android/app/src/main/res/drawable-nodpi/icon.png" alt="WARP Generator + ProtonVPN Converter" width="144" />
+
 Приложение для Android и Windows с двумя вкладками: **WARP** и **Proton VPN**. Android использует нативные Kotlin/Jetpack Compose генераторы из VladBox и встроенный JNI ByeDPI для регистрации WARP. Новая Windows-версия использует общий Kotlin-код и Compose Desktop; нативный ByeDPI для Windows интегрирован экспериментально и требует проверки. Старая Electron-версия временно доступна как дополнительная опция Preview All.
 
 Готовый профиль можно проверить в окне результата, скопировать или сохранить для импорта в AmneziaWG, WireSock, совместимый Clash-клиент или Xray. VPN-туннель поднимает выбранный клиент.

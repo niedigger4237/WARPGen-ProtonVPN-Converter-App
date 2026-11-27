@@ -7,6 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
@@ -27,6 +28,7 @@ private fun asset(name: String): String =
 
 fun main() = application {
     Window(onCloseRequest = ::exitApplication, title = "WARP + Proton AWG",
+        icon = painterResource("icon.png"),
         state = rememberWindowState(width = 1000.dp, height = 760.dp)) {
         val scope = rememberCoroutineScope()
         val dpiSettings = remember { WindowsDpiSettings(PortableSettings.dataDirectory(System.getProperty("jpackage.app-path"), Path.of(System.getProperty("user.dir"))), ::asset) }
