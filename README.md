@@ -2,20 +2,11 @@
 
 <img src="android/app/src/main/res/drawable-nodpi/icon.png" alt="WARP Generator + ProtonVPN Converter" width="144" />
 
-Приложение для Android и Windows с двумя вкладками: **WARP** и **Proton VPN**. Android использует нативные Kotlin/Jetpack Compose генераторы из VladBox и встроенный JNI ByeDPI для регистрации WARP. Новая Windows-версия использует общий Kotlin-код и Compose Desktop; нативный ByeDPI для Windows интегрирован экспериментально и требует проверки. Старая Electron-версия временно доступна как дополнительная опция Preview All.
+**WARP Generator & ProtonVPN Converter** — приложение для Android и Windows, предназначенное для генерации конфигураций Cloudflare WARP и преобразования профилей Proton VPN в форматы AmneziaWG, WireSock, Clash и Xray.
 
-Готовый профиль можно проверить в окне результата, скопировать или сохранить для импорта в AmneziaWG, WireSock, совместимый Clash-клиент или Xray. VPN-туннель поднимает выбранный клиент.
+Приложение позволяет настраивать сетевые параметры, маршрутизацию и маскировку трафика, просматривать, копировать и экспортировать готовые конфигурации. Для подключения используется отдельный совместимый VPN-клиент.
 
-## Скачать и запустить
-
-| Платформа | Что открыть | Возможности |
-| --- | --- | --- |
-| Android 6.0+ | APK | Нативные экраны, системный выбор файлов и папок, встроенный ByeDPI |
-| Windows x64 | `WarpProtonAWG-*-windows-x64.zip` | Портативная Compose Desktop версия со встроенной Java Runtime; Direct и Local Proxy, нативный ByeDPI (экспериментальный) |
-
-Релизы платформ независимы: [Android — релизы](https://github.com/niedigger4237/WARPGen-ProtonVPN-Converter-App/releases?q=android-v) и [Windows — релизы](https://github.com/niedigger4237/WARPGen-ProtonVPN-Converter-App/releases?q=windows-v). Теги имеют вид `android-v2.0` и `windows-v2.0`, версии приложений — без префиксов. До первого релиза соответствующей платформы список может быть пустым. Общая отметка Latest в GitHub относится только к одному релизу репозитория.
-
-Для тестирования доступны отдельные workflows: [Preview Android](https://github.com/niedigger4237/WARPGen-ProtonVPN-Converter-App/actions/workflows/preview-android.yml) (только подписанный APK), [Preview Windows](https://github.com/niedigger4237/WARPGen-ProtonVPN-Converter-App/actions/workflows/preview-windows.yml) (только портативный ZIP) и [Preview All](https://github.com/niedigger4237/WARPGen-ProtonVPN-Converter-App/actions/workflows/preview.yml) (обе платформы). Артефакты: `WarpProtonAWG-android` и `WarpProtonAWG-compose-desktop`. Старую Electron-версию можно собрать отдельно от обычного набора, включив опцию `legacy_windows` в Preview All; её артефакт — `WarpProtonAWG-windows`. По умолчанию Electron и старый ciadpi.exe не собираются. Не публикуйте новую Windows-версию до проверки и завершения нативного транспорта.
+Приватные ключи генерируются или обрабатываются локально. WARP-аккаунт хранится в памяти текущего сеанса, а конвертация профилей Proton VPN выполняется офлайн. Экспортированные конфигурации содержат приватные ключи.
 
 ## WARP — создать конфигурацию
 
@@ -32,7 +23,7 @@
 
 **Маршруты.** В AmneziaWG и WireSock можно направить через туннель весь трафик, исключить локальную сеть или выбрать сервисы. Генератор заполняет `AllowedIPs` по встроенным спискам IP. Доступны YouTube, Discord, WhatsApp, Telegram, X (Twitter), Instagram, Facebook, Viber, Itch.io, RuTracker, Rutor, NNMClub, BestChange, AnimeGo и HDrezka.
 
-**Регистрация WARP.** На Android в API Connection доступны Direct, Local proxy (SOCKS5 на `127.0.0.1:10808`) и ByeDPI (automatic). В новой Windows-версии доступны Direct и Local proxy (SOCKS5 на 127.0.0.1:10808); встроенный ByeDPI доступен для тестирования. Эти параметры относятся только к регистрации WARP.
+**Регистрация WARP.** Доступны прямое подключение (Direct), локальный SOCKS5-прокси (127.0.0.1:10808) и встроенный ByeDPI с автоматическим подбором стратегии. В настройках ByeDPI можно включать и отключать готовые стратегии, добавлять собственные, менять таймаут проверки и запоминать успешную стратегию. На Windows нативный ByeDPI пока экспериментальный; Linux-специфичные параметры `md5sig`, `drop-sack` и `wait-send` не поддерживаются. Эти настройки относятся только к регистрации WARP.
 
 ## Proton — преобразовать готовые конфиги
 
@@ -48,23 +39,3 @@
 Вкладки WARP и Proton позволяют вручную задать или случайно заполнить шесть диапазонов AWG 3.0. Это `ContentPaddingAddition`, `MaxHandshakeAttempts`, `KeepaliveTimeout`, `RejectAfterTime`, `RekeyAfterTime` и `RekeyTimeout`.
 
 В WARP эти параметры доступны для AmneziaWG и Clash, а в режиме AWG 3.1 отдельно переключаются `RandomTrailers` и `DisableCookies`. В Proton параметры AWG 3.0 и переключатель `DisableCookies` доступны для AmneziaWG, WireSock и Clash.
-
-## ByeDPI — встроенная регистрация WARP
-
-**Android.** В WARP выберите API Connection → ByeDPI (automatic). Движок `libwarp_dpi.so` собирается через CMake из исходников и вызывается через JNI. Регистрация использует приватный поток к Cloudflare API; отдельного SOCKS5-сервера, фонового сервиса, уведомления и вкладки ByeDPI нет. В настройках доступны выбор встроенных и пользовательских стратегий, таймаут проверки и запоминание успешной стратегии. После регистрации или отмены приватная сессия закрывается.
-
-**Windows (старый Electron, только Preview).** В WARP доступны раскрывающиеся настройки ByeDPI. Electron использует `ciadpi.exe` и локальный SOCKS5-прокси; подбор для Cloudflare выполняется автоматически. Ручное управление прокси и проверки сайтов сохранены внутри настроек WARP. Windows-движок собирается из [исходников ByeDPI](https://github.com/hufrea/byedpi).
-
-## Файлы и ключи
-
-На Android один результат сохраняется через системный диалог создания файла, несколько — в выбранную папку. Кнопка Share отдельно открывает системное меню «Поделиться». На Windows можно выбрать имя файла или папку для группы файлов. Приложение запоминает последний каталог и открывает сохранённый файл в Проводнике с выделением либо показывает папку с результатами.
-
-WARP-аккаунт хранится в памяти текущего сеанса. Чтобы использовать его позже, сохраните профиль до закрытия приложения. **Экспортированные файлы и скопированный текст содержат приватный ключ.** Proton-конфиги обрабатываются локально. Сетевые запросы выполняются при регистрации WARP и при проверке доступности Cloudflare API (Android) или выбранных сайтов в настройках ByeDPI (Windows).
-
-## Структура репозитория
-
-- `android/` — приложение Android.
-- `desktop/` — новая портативная версия Windows.
-- `shared/` — общие генераторы, интерфейс и исходники ByeDPI.
-- `tools/version.py` — общий скрипт версионирования Android и Windows.
-- `legacy/electron/` — предыдущая Windows-версия: Electron, HTML/JS, сборщик веб-интерфейса, ресурсы и npm-манифесты. Собирается только при выборе `legacy_windows` в Preview All.
