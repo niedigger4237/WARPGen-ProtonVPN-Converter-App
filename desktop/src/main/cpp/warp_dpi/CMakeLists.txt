@@ -3,7 +3,10 @@ project(warp_dpi_windows C)
 if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "Windows x64 MinGW toolchain required")
 endif()
-find_package(JNI REQUIRED COMPONENTS JVM)
+if(NOT EXISTS "${JAVA_HOME}/include/jni.h" OR NOT EXISTS "${JAVA_HOME}/include/win32/jni_md.h")
+    message(FATAL_ERROR "Set JAVA_HOME to a Windows JDK")
+endif()
+set(JNI_INCLUDE_DIRS "${JAVA_HOME}/include" "${JAVA_HOME}/include/win32")
 get_filename_component(SHARED_NATIVE "${CMAKE_CURRENT_SOURCE_DIR}/../../../../../shared/native" ABSOLUTE)
 add_library(warp_dpi_windows SHARED windows_engine.c windows_jni.c
     "${SHARED_NATIVE}/warp_dpi_arguments.c"

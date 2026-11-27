@@ -199,6 +199,16 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja
+      - name: Build Windows JNI engine
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          cmake -S desktop/src/main/cpp/warp_dpi -B desktop/build/native -G Ninja -DCMAKE_BUILD_TYPE=Release -DJAVA_HOME="$(cygpath -m "$JAVA_HOME")"
+          cmake --build desktop/build/native
       - name: Compile and package portable Compose Desktop
         shell: pwsh
         env:

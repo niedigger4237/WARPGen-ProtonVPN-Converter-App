@@ -15,6 +15,10 @@ import io.nekohasekai.sagernet.generator.proton.ProtonPresets
 import io.nekohasekai.sagernet.generator.proton.ProtonScreen
 import io.nekohasekai.sagernet.generator.warp.WarpScreen
 import io.nekohasekai.sagernet.generator.warp.WarpViewModel
+import io.nekohasekai.sagernet.generator.warp.WindowsDpiSettings
+import io.nekohasekai.sagernet.generator.warp.WindowsDpiTransport
+import io.nekohasekai.sagernet.generator.warp.WindowsDpiSettingsDialog
+import java.nio.file.Path
 
 private object Assets
 private fun asset(name: String): String =
@@ -25,7 +29,9 @@ fun main() = application {
     Window(onCloseRequest = ::exitApplication, title = "WARP + Proton AWG",
         state = rememberWindowState(width = 1000.dp, height = 760.dp)) {
         val scope = rememberCoroutineScope()
-        val model = remember(scope) { WarpViewModel(::asset, scope) }
+        val dpiSettings = remember { WindowsDpiSettings(PortableSettings.dataDirectory(System.getProperty("jpackage.app-path"), Path.of(System.getProperty("user.dir"))), ::asset) }
+        val dpi = remember(dpiSettings) { WindowsDpiTransport(dpiSettings) }
+        val model = remember(scope, dpi) { WarpViewModel(::asset, scope, dpi::register) }
         val presets = remember { ProtonPresets(::asset) }
         var sources by remember { mutableStateOf<List<ProtonParser.Source>>(emptyList()) }
         var tab by remember { mutableStateOf(0) }
@@ -55,7 +61,7 @@ fun main() = application {
                             TextButton(onClick = { message = "" }) { Text("Dismiss") }
                         }
                         Box(Modifier.weight(1f).fillMaxWidth()) {
-                            if (tab == 0) WarpScreen(model, files::copy, { files.save(listOf(it.fileName to it.text)) }, files::copy)
+                            if (tab == 0) WarpScreen(model, files::copy, { files.save(listOf(it.fileName to it.text)) }, files::copy, dpiSettings = { dismiss -> WindowsDpiSettingsDialog(dpiSettings, dismiss) })
                             else ProtonScreen(presets, sources, { sources = it }, files::pick, files::copy,
                                 { outputs -> files.save(outputs.map { it.fileName to it.text }) }, files::copy)
                         }

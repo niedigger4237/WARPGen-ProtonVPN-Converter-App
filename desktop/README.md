@@ -6,7 +6,7 @@ android\gradlew.bat -p desktop run
 android\gradlew.bat -p desktop portableZip
 ```
 
-This preview shares the Kotlin generators and Material 3 screens with Android. Direct WARP and local SOCKS5 transport (127.0.0.1:10808) are available; native Windows ByeDPI is not yet implemented, and is deliberately hidden. The Share action copies text on desktop. File selection, clipboard, and export use desktop APIs. The previous Electron implementation is isolated in `legacy/electron/` until Windows parity testing is complete.
+This preview shares the Kotlin generators and Material 3 screens with Android. Direct WARP, local SOCKS5 transport (127.0.0.1:10808) and experimental embedded Windows ByeDPI are available. Build the JNI DLL with the x64 MinGW CMake target before packaging; it is included in the portable ZIP. Windows native runtime and Cloudflare registration still require verification. The Share action copies text on desktop. File selection, clipboard, and export use desktop APIs. The previous Electron implementation is isolated in `legacy/electron/` until Windows parity testing is complete.
 
 ## Portable distribution
 
