@@ -76,6 +76,8 @@ internal class WarpDpiTransport(private val context: Context) {
     ) : AutoCloseable {
         val client: OkHttpClient = WarpApi.clientBuilder()
             .proxy(Proxy.NO_PROXY)
+            // The native engine owns one private stream; never race TCP routes.
+            .fastFallback(false)
             .socketFactory(WarpDpiSocketFactory(engine))
             .dns(object : Dns {
                 override fun lookup(hostname: String): List<InetAddress> {
