@@ -1,11 +1,10 @@
 package io.nekohasekai.sagernet.generator.warp
 
-import android.content.Context
 import io.nekohasekai.sagernet.generator.common.QuicI1Generator
 
 /** Stateless configuration rendering; account and seed are owned by the caller. */
-internal class WarpGenerator(context: Context) {
-    val presets = WarpPresets(context.applicationContext)
+internal class WarpGenerator(readAsset: (String) -> String) {
+    val presets = WarpPresets(readAsset)
     enum class Format { AWG, WIRESOCK, CLASH, XRAY }
     data class Settings(
         val format: Format = Format.AWG,

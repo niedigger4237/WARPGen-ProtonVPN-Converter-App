@@ -1,6 +1,6 @@
 package io.nekohasekai.sagernet.generator.warp
 
-import android.util.Base64
+import org.bouncycastle.util.encoders.Base64
 import org.json.JSONObject
 import java.security.SecureRandom
 import org.bouncycastle.crypto.params.X25519PrivateKeyParameters
@@ -18,7 +18,7 @@ internal object WarpRegistration {
         val key = X25519PrivateKeyParameters(SecureRandom())
         val secret = key.encoded
         try {
-            val pub = Base64.encodeToString(key.generatePublicKey().encoded, Base64.NO_WRAP)
+            val pub = Base64.toBase64String(key.generatePublicKey().encoded)
             val tos = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
                 timeZone = TimeZone.getTimeZone("UTC")
             }.format(Date())
@@ -32,9 +32,9 @@ internal object WarpRegistration {
             val config = request("PATCH", "reg/$id", JSONObject().put("warp_enabled", true), token)
                 .getJSONObject("result").getJSONObject("config")
             val peer = config.getJSONArray("peers").getJSONObject(0).getString("public_key")
-            require(Base64.decode(peer, Base64.DEFAULT).size == 32)
+            require(Base64.decode(peer).size == 32)
             val addresses = config.getJSONObject("interface").getJSONObject("addresses")
-            return Account(Base64.encodeToString(secret, Base64.NO_WRAP), peer,
+            return Account(Base64.toBase64String(secret), peer,
                 addresses.getString("v4"), addresses.getString("v6"))
         } finally {
             secret.fill(0)

@@ -1,23 +1,21 @@
 package io.nekohasekai.sagernet.generator.proton
 
-import android.content.Context
 import io.nekohasekai.sagernet.generator.common.QuicI1Generator
 import io.nekohasekai.sagernet.generator.warp.WarpPresets
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.random.Random
 
-internal class ProtonPresets(context: Context) {
-    private val assets = context.applicationContext.assets
-    private val packets = assets.open("generator/proton_i1.json").bufferedReader().use {
-        val a = JSONArray(it.readText())
+internal class ProtonPresets(readAsset: (String) -> String) {
+    private val packets = readAsset("generator/proton_i1.json").let {
+        val a = JSONArray(it)
         List(a.length()) { n -> a.getString(n) }
     }
-    private val domains = assets.open("generator/warp_data.json").bufferedReader().use {
-        val a = JSONObject(it.readText()).getJSONArray("domains")
+    private val domains = readAsset("generator/warp_data.json").let {
+        val a = JSONObject(it).getJSONArray("domains")
         List(a.length()) { n -> a.getString(n) }
     }
-    private val network = WarpPresets(context.applicationContext)
+    private val network = WarpPresets(readAsset)
 
     fun defaults() = ProtonConfExporter.Options(
         defaultI1 = packets.first(), wsIp = "quic", wsBrowser = "curl",

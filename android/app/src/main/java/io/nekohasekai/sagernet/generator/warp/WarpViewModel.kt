@@ -23,7 +23,7 @@ internal class WarpViewModel(application: Application) : AndroidViewModel(applic
         val strategyProgress: String? = null,
         val error: String? = null
     )
-    private val generator = WarpGenerator(application)
+    private val generator = WarpGenerator { name -> application.assets.open(name).bufferedReader().use { it.readText() } }
     private val dpiTransport = WarpDpiTransport(application)
     val presets get() = generator.presets
     private val mutableState = MutableStateFlow(State())

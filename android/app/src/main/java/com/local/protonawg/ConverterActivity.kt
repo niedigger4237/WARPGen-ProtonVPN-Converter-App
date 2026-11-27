@@ -44,7 +44,7 @@ class ConverterActivity : ComponentActivity() {
     }
     private val files by lazy { ViewModelProvider(this)[FileState::class.java] }
     private val warp by lazy { ViewModelProvider(this)[WarpViewModel::class.java] }
-    private val presets by lazy { ProtonPresets(applicationContext) }
+    private val presets by lazy { ProtonPresets { name -> applicationContext.assets.open(name).bufferedReader().use { it.readText() } } }
     private fun notify(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     private fun copy(text: String) {
         (getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("config", text))

@@ -1,12 +1,11 @@
 package io.nekohasekai.sagernet.generator.warp
 
-import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.random.Random
 
-internal class WarpPresets(context: Context) {
-    private val data = context.assets.open("generator/warp_data.json").bufferedReader().use { JSONObject(it.readText()) }
+internal class WarpPresets(readAsset: (String) -> String) {
+    private val data = JSONObject(readAsset("generator/warp_data.json"))
     data class Dns(val id: String, val label: String, val addresses: List<String>)
     data class Seed(val port: Int, val prefix: String, val last: Int, val number: Int, val domain: String, val xray: String)
     enum class EndpointMode { RANDOM, ENGAGE, CUSTOM }
