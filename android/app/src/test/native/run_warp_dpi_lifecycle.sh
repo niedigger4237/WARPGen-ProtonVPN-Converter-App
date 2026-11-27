@@ -4,6 +4,7 @@ set -euo pipefail
 test_dir="$(cd "$(dirname "$0")" && pwd)"
 main_dir="$test_dir/../../main"
 native_dir="$main_dir/cpp/warp_dpi"
+shared_native="$test_dir/../../../../../shared/native"
 catalog="$main_dir/java/io/nekohasekai/sagernet/generator/warp/DpiStrategyCatalog.kt"
 output="$(mktemp -d)"
 trap 'rm -rf "$output"' EXIT
@@ -28,8 +29,8 @@ print("};")
 PY
 
 "${CC:-cc}" -D_GNU_SOURCE -std=c11 -O1 -g -pthread -Wl,--wrap=getaddrinfo,--wrap=connect,--wrap=getsockopt,--wrap=create_conn,--wrap=send \
-    -I"$output" -I"$native_dir" \
+    -I"$output" -I"$native_dir" -I"$shared_native" \
     "$test_dir/warp_dpi_lifecycle.c" "$native_dir/warp_dpi_engine.c" \
-    "$native_dir/warp_dpi_arguments.c" "$native_dir/private_stream.c" "$native_dir"/byedpi/*.c \
+    "$shared_native/warp_dpi_arguments.c" "$native_dir/private_stream.c" "$shared_native"/byedpi/*.c \
     -o "$output/warp_dpi_lifecycle"
 "$output/warp_dpi_lifecycle"

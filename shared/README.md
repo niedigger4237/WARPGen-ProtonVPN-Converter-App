@@ -7,4 +7,4 @@
 - `android/app`: Android lifecycle, SAF, clipboard, preferences, and JNI adapter.
 - `desktop`: desktop window, platform file and preferences adapters, bundled runtime.
 
-These are shared source sets rather than separately published libraries; keep core independent of UI/platform APIs. Native transport currently lives under Android; a portable C core and Windows adapter are a separate migration. Electron remains until Windows parity is proven.
+These are shared source sets rather than separately published libraries; keep core independent of UI/platform APIs. The canonical C sources and strategy argument parser live in `shared/native`. POSIX engine/stream lifecycle and Android JNI remain under `android/app/src/main/cpp/warp_dpi`; the Winsock adapter is not implemented yet. Electron remains until Windows parity is proven.
