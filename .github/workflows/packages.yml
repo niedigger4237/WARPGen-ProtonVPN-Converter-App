@@ -6,6 +6,9 @@ on:
       platform:
         type: string
         default: all
+      legacy_windows:
+        type: boolean
+        default: false
       release:
         type: boolean
         default: false
@@ -49,7 +52,7 @@ jobs:
 
   # Windows uses the standalone executable; Android builds JNI via CMake.
   byedpi:
-    if: ${{ inputs.platform == 'all' && !inputs.release }}
+    if: ${{ inputs.platform != 'android' && inputs.legacy_windows && !inputs.release }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -73,7 +76,7 @@ jobs:
           if-no-files-found: error
 
   windows:
-    if: ${{ inputs.platform == 'all' && !inputs.release }}
+    if: ${{ inputs.platform != 'android' && inputs.legacy_windows && !inputs.release }}
     needs: [version, byedpi]
     runs-on: windows-latest
     steps:

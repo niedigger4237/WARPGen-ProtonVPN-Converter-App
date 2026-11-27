@@ -1,6 +1,6 @@
 # WARP + Proton AWG
 
-Приложение для Android и Windows с двумя вкладками: **WARP** и **Proton VPN**. Android использует нативные Kotlin/Jetpack Compose генераторы из VladBox и встроенный JNI ByeDPI для регистрации WARP. Новая Windows-версия использует общий Kotlin-код и Compose Desktop; нативный ByeDPI для Windows ещё в разработке. Старая Electron-версия временно доступна в Preview.
+Приложение для Android и Windows с двумя вкладками: **WARP** и **Proton VPN**. Android использует нативные Kotlin/Jetpack Compose генераторы из VladBox и встроенный JNI ByeDPI для регистрации WARP. Новая Windows-версия использует общий Kotlin-код и Compose Desktop; нативный ByeDPI для Windows ещё в разработке. Старая Electron-версия временно доступна как дополнительная опция Preview All.
 
 Готовый профиль можно проверить в окне результата, скопировать или сохранить для импорта в AmneziaWG, WireSock, совместимый Clash-клиент или Xray. VPN-туннель поднимает выбранный клиент.
 
@@ -13,7 +13,7 @@
 
 Релизы платформ независимы: [Android — релизы](https://github.com/niedigger4237/WARPGen-ProtonVPN-Converter-App/releases?q=android-v) и [Windows — релизы](https://github.com/niedigger4237/WARPGen-ProtonVPN-Converter-App/releases?q=windows-v). Теги имеют вид `android-v2.0` и `windows-v2.0`, версии приложений — без префиксов. До первого релиза соответствующей платформы список может быть пустым. Общая отметка Latest в GitHub относится только к одному релизу репозитория.
 
-Для тестирования откройте [Preview](https://github.com/niedigger4237/WARPGen-ProtonVPN-Converter-App/actions/workflows/preview.yml). Артефакты: `WarpProtonAWG-android` (подписанный APK), `WarpProtonAWG-compose-desktop` (портативный ZIP), `WarpProtonAWG-windows` (временный старый Electron). Не публикуйте новую Windows-версию до проверки и завершения нативного транспорта.
+Для тестирования доступны отдельные workflows: [Preview Android](https://github.com/niedigger4237/WARPGen-ProtonVPN-Converter-App/actions/workflows/preview-android.yml) (только подписанный APK), [Preview Windows](https://github.com/niedigger4237/WARPGen-ProtonVPN-Converter-App/actions/workflows/preview-windows.yml) (только портативный ZIP) и [Preview All](https://github.com/niedigger4237/WARPGen-ProtonVPN-Converter-App/actions/workflows/preview.yml) (обе платформы). Артефакты: `WarpProtonAWG-android` и `WarpProtonAWG-compose-desktop`. Старую Electron-версию можно собрать отдельно от обычного набора, включив опцию `legacy_windows` в Preview All; её артефакт — `WarpProtonAWG-windows`. По умолчанию Electron и старый ciadpi.exe не собираются. Не публикуйте новую Windows-версию до проверки и завершения нативного транспорта.
 
 ## WARP — создать конфигурацию
 

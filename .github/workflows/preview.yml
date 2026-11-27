@@ -1,7 +1,12 @@
-name: Preview
+name: Preview All
 
 on:
   workflow_dispatch:
+    inputs:
+      legacy_windows:
+        description: 'Also build legacy Electron (optional)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -9,6 +14,9 @@ permissions:
 jobs:
   build:
     uses: ./.github/workflows/packages.yml
+    with:
+      platform: all
+      legacy_windows: ${{ inputs.legacy_windows }}
     secrets:
       KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
       KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
