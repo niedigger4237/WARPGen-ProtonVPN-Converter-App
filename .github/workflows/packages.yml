@@ -3,6 +3,12 @@ name: Build packages
 on:
   workflow_call:
     inputs:
+      platform:
+        type: string
+        default: all
+      legacy_windows:
+        type: boolean
+        default: false
       release:
         type: boolean
         default: false
@@ -26,15 +32,22 @@ jobs:
     outputs:
       name: ${{ steps.version.outputs.name }}
       semver: ${{ steps.version.outputs.semver }}
+      windows_semver: ${{ steps.windows-version.outputs.semver }}
       code: ${{ steps.version.outputs.code }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - id: version
+        if: ${{ inputs.platform != 'windows' }}
         env:
           RELEASE_VERSION: ${{ inputs.version }}
-        run: python3 tools/version.py --ci-build-code ${{ inputs.release && '--release' || '' }}
+        run: python3 tools/version.py --platform android --ci-build-code ${{ inputs.release && '--release' || '' }}
+      - id: windows-version
+        if: ${{ inputs.platform != 'android' }}
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: python3 tools/version.py --platform windows ${{ inputs.release && '--release' || '' }}
 
   # Сборка движка ByeDPI из исходников (Windows .exe и Android-исполняемые файлы).
   byedpi:
@@ -48,12 +61,14 @@ jobs:
           git -C src-byedpi fetch --depth 1 https://github.com/hufrea/byedpi e2684772fbda45f2ff4fc220922a010370534216
           git -C src-byedpi checkout --detach FETCH_HEAD
       - name: Windows (mingw)
+        if: ${{ inputs.platform != 'android' }}
         run: |
           sudo apt-get update -y && sudo apt-get install -y gcc-mingw-w64-x86-64
           cd src-byedpi
           make windows CC=x86_64-w64-mingw32-gcc
           cp ciadpi.exe ../out/win/
       - name: Android (NDK)
+        if: ${{ inputs.platform != 'windows' }}
         run: |
           NDK="${ANDROID_NDK_LATEST_HOME:-$ANDROID_NDK_HOME}"
           TC="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
@@ -74,6 +89,7 @@ jobs:
           if-no-files-found: error
 
   windows:
+    if: ${{ inputs.platform != 'android' }}
     needs: [version, byedpi]
     runs-on: windows-latest
     steps:
@@ -94,7 +110,7 @@ jobs:
       - run: python tools/build.py
       - name: Set Windows package version
         env:
-          BUILD_VERSION: ${{ needs.version.outputs.semver }}
+          BUILD_VERSION: ${{ needs.version.outputs.windows_semver }}
         run: npm pkg set "version=$env:BUILD_VERSION"
         shell: pwsh
       - run: npm run dist:win
@@ -111,6 +127,7 @@ jobs:
           if-no-files-found: error
 
   android:
+    if: ${{ inputs.platform != 'windows' }}
     env:
       VERSION_NAME: ${{ needs.version.outputs.name }}
       VERSION_CODE: ${{ needs.version.outputs.code }}

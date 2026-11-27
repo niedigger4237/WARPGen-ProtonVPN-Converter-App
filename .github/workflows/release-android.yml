@@ -1,0 +1,73 @@
+name: Release Android
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Tag (e.g. android-v2.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-android-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate release tag
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          python3 tools/version.py --platform android --release --json
+          if [[ -n "$(git ls-remote --tags origin "refs/tags/$RELEASE_VERSION")" ]]; then
+            echo "::error::Tag already exists; choose a new version"
+            exit 1
+          fi
+
+  build:
+    needs: validate
+    uses: ./.github/workflows/packages.yml
+    with:
+      platform: android
+      release: true
+      version: ${{ inputs.version }}
+    secrets:
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
+      ALIAS_PASS: ${{ secrets.ALIAS_PASS }}
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: WarpProtonAWG-android
+          path: packages
+      - name: Publish Android release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          export RELEASE_VERSION="$TAG"
+          python3 tools/version.py --platform android --release --json
+          if [[ -n "$(git ls-remote --tags origin "refs/tags/$TAG")" ]]; then
+            echo "::error::Tag already exists"
+            exit 1
+          fi
+          VERSION="${TAG#android-v}"
+          mv packages/WarpProtonAWG-signed.apk "packages/WarpProtonAWG-$VERSION-android.apk"
+          ASSET="packages/WarpProtonAWG-$VERSION-android.apk"
+          test -s "$ASSET"
+          gh release create "$TAG" "$ASSET" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Android $VERSION" --generate-notes

@@ -1,0 +1,17 @@
+name: Preview Android
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    uses: ./.github/workflows/packages.yml
+    with:
+      platform: android
+    secrets:
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
+      ALIAS_PASS: ${{ secrets.ALIAS_PASS }}

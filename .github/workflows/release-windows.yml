@@ -1,0 +1,73 @@
+name: Release Windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Tag (e.g. windows-v2.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-windows-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate release tag
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          python3 tools/version.py --platform windows --release --json
+          if [[ -n "$(git ls-remote --tags origin "refs/tags/$RELEASE_VERSION")" ]]; then
+            echo "::error::Tag already exists; choose a new version"
+            exit 1
+          fi
+
+  build:
+    needs: validate
+    uses: ./.github/workflows/packages.yml
+    with:
+      platform: windows
+      release: true
+      version: ${{ inputs.version }}
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: WarpProtonAWG-windows
+          path: packages
+      - name: Publish Windows release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          export RELEASE_VERSION="$TAG"
+          python3 tools/version.py --platform windows --release --json
+          if [[ -n "$(git ls-remote --tags origin "refs/tags/$TAG")" ]]; then
+            echo "::error::Tag already exists"
+            exit 1
+          fi
+          VERSION="${TAG#windows-v}"
+          shopt -s nullglob
+          assets=(packages/*.exe)
+          if (( ${#assets[@]} == 0 )); then
+            echo "::error::No Windows executable found"
+            exit 1
+          fi
+          for asset in "${assets[@]}"; do test -s "$asset"; done
+          gh release create "$TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Windows $VERSION" --generate-notes
