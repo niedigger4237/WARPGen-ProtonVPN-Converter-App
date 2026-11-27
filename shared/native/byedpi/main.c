@@ -23,7 +23,6 @@
     #define DAEMON
 #else
     #include <ws2tcpip.h>
-    #include "win_service.h"
     #define close(fd) closesocket(fd)
 #endif
 
@@ -451,7 +450,8 @@ int get_addr(const char *str, union sockaddr_u *addr)
 
 int get_default_ttl(void)
 {
-    int orig_ttl = -1, fd;
+    int orig_ttl = -1;
+    warp_socket_t fd;
     socklen_t tsize = sizeof(orig_ttl);
 
     if ((fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -469,7 +469,7 @@ int get_default_ttl(void)
 
 bool ipv6_support(void)
 {
-    int fd = socket(AF_INET6, SOCK_STREAM, 0);
+    warp_socket_t fd = socket(AF_INET6, SOCK_STREAM, 0);
     if (fd < 0) {
         return 0;
     }
@@ -588,10 +588,14 @@ int init_pid_file(const char *fname)
 #endif
 
 
+#ifdef _WIN32
+static bool winsock_active;
+#endif
+
 void clear_params(void)
 {
     #ifdef _WIN32
-    WSACleanup();
+    if (winsock_active) { WSACleanup(); winsock_active = false; }
     #endif
     #ifdef DAEMON
     if (params.pid_fd > 0) {
@@ -697,9 +701,7 @@ int byedpi_configure(int argc, char **argv, bool runtime, char *error)
         uniperror("WSAStartup");
         return -1;
     }
-    if (register_winsvc(argc, argv)) {
-        return 0;
-    }
+    winsock_active = true;
     #endif
     int optc = sizeof(options)/sizeof(*options);
     for (int i = 0, e = optc; i < e; i++)

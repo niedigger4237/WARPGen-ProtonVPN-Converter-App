@@ -32,7 +32,7 @@
 #define ERR_WAIT -12
 
 
-int setttl(int fd, int ttl)
+int setttl(warp_socket_t fd, int ttl)
 {
     int ret6 = setsockopt(fd, IPPROTO_IPV6,
         IPV6_UNICAST_HOPS, (char *)&ttl, sizeof(ttl));
@@ -48,7 +48,7 @@ int setttl(int fd, int ttl)
 
 
 #ifdef __linux__
-static int drop_sack(int fd)
+static int drop_sack(warp_socket_t fd)
 {
     struct sock_filter code[] = {
         { 0x30, 0, 0, 0x0000000c },
@@ -72,7 +72,7 @@ static int drop_sack(int fd)
 }
 
 
-static bool sock_has_notsent(int sfd)
+static bool sock_has_notsent(warp_socket_t sfd)
 {
     struct tcp_info tcpi;
     socklen_t ts = sizeof(tcpi);
@@ -174,7 +174,7 @@ static struct packet get_tcp_fake(const char *buffer, ssize_t n,
 
 
 #ifdef __linux__
-static int set_md5sig(int sfd, unsigned short key_len)
+static int set_md5sig(warp_socket_t sfd, unsigned short key_len)
 {
     struct tcp_md5sig md5 = {
         .tcpm_keylen = key_len
@@ -253,16 +253,32 @@ struct tf_s {
     OVERLAPPED ov;
 };
 
-int tf_count = 0;
-struct tf_s tf_exems[MAX_TF] = { 0 };
+static int tf_count = 0;
+static struct tf_s tf_exems[MAX_TF] = { 0 };
+
+/* Called only after all sockets of the private event loop have been closed. */
+void byedpi_windows_drain(void)
+{
+    for (int i = 0; i < MAX_TF; ++i) {
+        struct tf_s *s = &tf_exems[i];
+        if (s->ov.hEvent) {
+            WaitForSingleObject(s->ov.hEvent, INFINITE);
+            CloseHandle(s->ov.hEvent);
+        }
+        if (s->tfile) CloseHandle(s->tfile);
+        memset(s, 0, sizeof(*s));
+    }
+    tf_count = 0;
+}
 
 
 static struct tf_s *getTFE(void)
 {
     struct tf_s *s = 0;
-    if (tf_count < MAX_TF)
-        s = &tf_exems[tf_count];
-    else {
+    for (int i = 0; i < MAX_TF; ++i) {
+        if (!tf_exems[i].tfile) return &tf_exems[i];
+    }
+    {
         HANDLE events[MAX_TF];
         for (int i = 0; i < MAX_TF; i++) {
             events[i] = tf_exems[i].ov.hEvent;
@@ -317,6 +333,7 @@ static ssize_t send_fake(struct eval *val, const char *buffer,
     }
     s->tfile = hfile;
     ssize_t len = -1, ps = pkt.size - pkt.off;
+    bool queued = false;
 
     while (1) {
         DWORD wrtcnt = 0;
@@ -354,6 +371,7 @@ static ssize_t send_fake(struct eval *val, const char *buffer,
                 break;
             }
         }
+        queued = true;
         if (SetFilePointer(hfile, 0, 0, FILE_BEGIN) == INVALID_SET_FILE_POINTER) {
             uniperror("SetFilePointer");
             break;
@@ -369,9 +387,10 @@ static ssize_t send_fake(struct eval *val, const char *buffer,
         if (tf_count < MAX_TF) tf_count++;
         break;
     }
-    if (len < 0) {
+    if (len < 0 && !queued) {
         CloseHandle(s->tfile);
         if (s->ov.hEvent) CloseHandle(s->ov.hEvent);
+        memset(s, 0, sizeof(*s));
     }
     return len;
 }
@@ -398,7 +417,7 @@ static void restore_state(struct eval *val)
 }
 
 
-static ssize_t send_oob(int sfd, char *buffer,
+static ssize_t send_oob(warp_socket_t sfd, char *buffer,
         ssize_t n, long pos, const char *c)
 {
     if (n <= pos) {
@@ -528,7 +547,7 @@ ssize_t desync(struct poolhd *pool,
     struct desync_params dp = *val->pair->dp;
     struct proto_info info = { 0 };
 
-    int sfd = val->fd;
+    warp_socket_t sfd = val->fd;
 
     char *buffer = buff->data;
     size_t bfsize = buff->size;
@@ -694,7 +713,7 @@ ssize_t desync(struct poolhd *pool,
 }
 
 
-int pre_desync(int sfd, struct desync_params *dp)
+int pre_desync(warp_socket_t sfd, struct desync_params *dp)
 {
     #ifdef __linux__
     if (dp->drop_sack && drop_sack(sfd)) {
@@ -704,7 +723,7 @@ int pre_desync(int sfd, struct desync_params *dp)
     return 0;
 }
 
-int post_desync(int sfd, struct desync_params *dp)
+int post_desync(warp_socket_t sfd, struct desync_params *dp)
 {
     #ifdef __linux__
     int nop = 0;
@@ -720,7 +739,7 @@ int post_desync(int sfd, struct desync_params *dp)
 }
 
 
-ssize_t desync_udp(int sfd, char *buffer,
+ssize_t desync_udp(warp_socket_t sfd, char *buffer,
         ssize_t n, const struct sockaddr *dst, struct desync_params *dp)
 {
     if (LOG_ENABLED) {

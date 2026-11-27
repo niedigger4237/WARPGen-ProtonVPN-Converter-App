@@ -17,13 +17,13 @@
 
 ssize_t desync(struct poolhd *pool, struct eval *val, struct buffer *buff, ssize_t *n, bool *wait);
 
-ssize_t desync_udp(int sfd, char *buffer, ssize_t n, const struct sockaddr *dst, struct desync_params *dp);
+ssize_t desync_udp(warp_socket_t sfd, char *buffer, ssize_t n, const struct sockaddr *dst, struct desync_params *dp);
 
-int setttl(int fd, int ttl);
+int setttl(warp_socket_t fd, int ttl);
 
-int pre_desync(int sfd, struct desync_params *dp);
+int pre_desync(warp_socket_t sfd, struct desync_params *dp);
 
-int post_desync(int sfd, struct desync_params *dp);
+int post_desync(warp_socket_t sfd, struct desync_params *dp);
 
 struct proto_info {
     char init, type;

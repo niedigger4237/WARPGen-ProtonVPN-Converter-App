@@ -15,6 +15,12 @@
     #include <sys/socket.h>
 #endif
 
+#ifdef _WIN32
+    typedef intptr_t warp_socket_t;
+#else
+    typedef int warp_socket_t;
+#endif
+
 #include "mpool.h"
 
 #if defined(__linux__) || defined(_WIN32)

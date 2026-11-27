@@ -8,7 +8,7 @@
 
 int on_connerr(struct poolhd *pool, struct eval *val);
 
-int socket_mod(int fd);
+int socket_mod(warp_socket_t fd);
 
 int connect_hook(struct poolhd *pool, struct eval *val,
         const union sockaddr_u *dst, evcb_t next);

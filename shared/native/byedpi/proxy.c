@@ -55,12 +55,12 @@ void map_fix(union sockaddr_u *addr, char f6)
 }
 
 
-static inline int nb_socket(int domain, int type)
+static inline warp_socket_t nb_socket(int domain, int type)
 {
     #ifdef __linux__
-    int fd = socket(domain, type | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
+    warp_socket_t fd = socket(domain, type | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
     #else
-    int fd = socket(domain, type, 0);
+    warp_socket_t fd = socket(domain, type, 0);
     #endif
     if (fd < 0) {
         uniperror("socket");
@@ -86,7 +86,7 @@ static inline int nb_socket(int domain, int type)
 }
 
 
-static int remote_sock(union sockaddr_u *dst, int type)
+static warp_socket_t remote_sock(union sockaddr_u *dst, int type)
 {
     if (params.baddr.sa.sa_family == AF_INET6) {
         map_fix(dst, 6);
@@ -97,7 +97,7 @@ static int remote_sock(union sockaddr_u *dst, int type)
         LOG(LOG_E, "different addresses family\n");
         return -1;
     }
-    int sfd = nb_socket(dst->sa.sa_family, type);
+    warp_socket_t sfd = nb_socket(dst->sa.sa_family, type);
     if (sfd < 0) {
         uniperror("socket");
         return -1;
@@ -130,7 +130,7 @@ int create_conn(struct poolhd *pool,
 {
     union sockaddr_u addr = *dst;
 
-    int sfd = remote_sock(&addr, SOCK_STREAM);
+    warp_socket_t sfd = remote_sock(&addr, SOCK_STREAM);
     if (sfd < 0) {
         return -1;
     }
@@ -161,8 +161,8 @@ int create_conn(struct poolhd *pool,
     }
     if (LOG_ENABLED) {
         INIT_ADDR_STR((*dst));
-        LOG(LOG_S, "new conn: fd=%d, pair=%d, addr=%s:%d\n",
-            sfd, val->fd, ADDR_STR, ntohs(dst->in.sin_port));
+        LOG(LOG_S, "new conn: fd=%lld, pair=%lld, addr=%s:%d\n",
+            (long long)sfd, (long long)val->fd, ADDR_STR, ntohs(dst->in.sin_port));
     }
     int status = connect(sfd, &addr.sa, SA_SIZE(&addr));
     if (status == 0 && params.tfo) {
@@ -204,7 +204,7 @@ int on_tunnel(struct poolhd *pool, struct eval *val, int etype)
     struct eval *pair = val->pair;
 
     if (etype & POLLOUT || etype == POLLTIMEOUT) {
-        LOG(LOG_S, "pollout (fd=%d)\n", val->fd);
+        LOG(LOG_S, "pollout (fd=%lld)\n", (long long)val->fd);
         val = pair;
         pair = val->pair;
     }
@@ -254,10 +254,10 @@ int on_tunnel(struct poolhd *pool, struct eval *val, int etype)
         }
         if (sn < n || wait) {
             if (sn < n) {
-                LOG(LOG_S, "send: %zd != %zd (fd=%d)\n", sn, n, pair->fd);
+                LOG(LOG_S, "send: %zd != %zd (fd=%lld)\n", sn, n, (long long)pair->fd);
             }
             else {
-                LOG(LOG_S, "send: %zd, but not done yet (fd=%d)\n", sn, pair->fd);
+                LOG(LOG_S, "send: %zd, but not done yet (fd=%lld)\n", sn, (long long)pair->fd);
             }
 
             buff->lock = n;
@@ -309,7 +309,7 @@ static int on_private_stop(struct poolhd *pool, struct eval *val, int et)
     return 0;
 }
 
-void byedpi_private_loop(int stream, int stop, const union sockaddr_u *dst)
+void byedpi_private_loop(warp_socket_t stream, warp_socket_t stop, const union sockaddr_u *dst)
 {
     struct poolhd *pool = init_pool(4);
     if (!pool) {

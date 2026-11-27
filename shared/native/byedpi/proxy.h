@@ -22,6 +22,6 @@ int create_conn(struct poolhd *pool,
 int on_private_connect(struct poolhd *pool, struct eval *val, int et);
 int on_tunnel(struct poolhd *pool, struct eval *val, int etype);
 int on_ignore(struct poolhd *pool, struct eval *val, int etype);
-void byedpi_private_loop(int stream, int stop, const union sockaddr_u *dst);
+void byedpi_private_loop(warp_socket_t stream, warp_socket_t stop, const union sockaddr_u *dst);
 
 #endif

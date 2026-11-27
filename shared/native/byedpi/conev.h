@@ -64,12 +64,12 @@ struct buffer {
 };
 
 struct eval {
-    int fd;
+    warp_socket_t fd;
     int index;
     unsigned long long mod_iter;
     evcb_t cb;
 
-    long tv_ms;
+    int64_t tv_ms;
     struct eval *tv_next, *tv_prev;
 
     struct eval *pair;
@@ -119,9 +119,9 @@ struct poolhd {
 
 struct poolhd *init_pool(int count);
 
-struct eval *add_event(struct poolhd *pool, evcb_t cb, int fd, int e);
+struct eval *add_event(struct poolhd *pool, evcb_t cb, warp_socket_t fd, int e);
 
-struct eval *add_pair(struct poolhd *pool, struct eval *val, int sfd, int e);
+struct eval *add_pair(struct poolhd *pool, struct eval *val, warp_socket_t sfd, int e);
 
 void del_event(struct poolhd *pool, struct eval *val);
 

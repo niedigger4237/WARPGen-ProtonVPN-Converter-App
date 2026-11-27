@@ -44,7 +44,7 @@ struct poolhd *init_pool(int count)
 
 
 struct eval *add_event(struct poolhd *pool, evcb_t cb,
-        int fd, int e)
+        warp_socket_t fd, int e)
 {
     assert(fd >= 0);
     if (pool->count >= pool->max) {
@@ -81,8 +81,8 @@ struct eval *add_event(struct poolhd *pool, evcb_t cb,
 void del_event(struct poolhd *pool, struct eval *val)
 {
     assert(val->fd >= -1 && val->mod_iter <= pool->iters);
-    LOG(LOG_S, "close: fd=%d (pair=%d), recv: %zd, rounds: %d\n",
-        val->fd, val->pair ? val->pair->fd : -1,
+    LOG(LOG_S, "close: fd=%lld (pair=%lld), recv: %zd, rounds: %d\n",
+        (long long)val->fd, (long long)(val->pair ? val->pair->fd : -1),
         val->recv_count, val->round_count);
     if (val->fd == -1) {
         return;
@@ -232,16 +232,14 @@ int mod_etype(struct poolhd *pool, struct eval *val, int type)
 }
 #endif
 
-static long time_ms(void)
+static int64_t time_ms(void)
 {
     #ifndef _WIN32
     struct timespec t;
     clock_gettime(CLOCK_MONOTONIC, &t);
     return t.tv_sec * 1e3 + (t.tv_nsec / 1e6);
     #else
-    FILETIME st;
-    GetSystemTimeAsFileTime(&st);
-    return (((((uint64_t)st.dwHighDateTime) << 32) | st.dwLowDateTime) / 1e4);
+    return (int64_t)GetTickCount64();
     #endif
 }
 
@@ -303,7 +301,8 @@ struct eval *next_event_tv(struct poolhd *pool, int *offs, int *type)
     }
     struct eval *val = 0;
 
-    int ms = pool->tv_start->tv_ms - time_ms();
+    int64_t remaining = pool->tv_start->tv_ms - time_ms();
+    int ms = remaining > INT_MAX ? INT_MAX : remaining < 0 ? 0 : (int)remaining;
     if (ms > 0) {
         val = next_event(pool, offs, type, ms);
     }
@@ -329,7 +328,7 @@ void loop_event(struct poolhd *pool)
             uniperror("(e)poll");
             break;
         }
-        LOG(LOG_L, "new event: fd: %d, type: %d\n", val->fd, etype);
+        LOG(LOG_L, "new event: fd: %lld, type: %d\n", (long long)val->fd, etype);
 
         int ret = (*val->cb)(pool, val, etype);
         if (ret < 0) {

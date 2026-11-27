@@ -24,7 +24,7 @@
 #include "packets.h"
 
 
-static int set_timeout(int fd, unsigned int s)
+static int set_timeout(warp_socket_t fd, unsigned int s)
 {
     #ifdef __linux__
     if (setsockopt(fd, IPPROTO_TCP,
@@ -146,7 +146,7 @@ int connect_hook(struct poolhd *pool, struct eval *val,
 }
 
 
-int socket_mod(int fd)
+int socket_mod(warp_socket_t fd)
 {
     if (params.custom_ttl) {
         if (setttl(fd, params.def_ttl) < 0) {
@@ -525,7 +525,7 @@ ssize_t tcp_send_hook(struct poolhd *pool,
             skip = 1;
         }
         else {
-            LOG(LOG_S, "desync TCP: group=%d, round=%d, fd=%d\n", client->dp->id, r, remote->fd);
+            LOG(LOG_S, "desync TCP: group=%d, round=%d, fd=%lld\n", client->dp->id, r, (long long)remote->fd);
             sn = desync(pool, remote, buff, n, wait);
         }
     }
@@ -630,7 +630,7 @@ ssize_t udp_hook(struct eval *val,
     if (!check_round(dp->rounds, r)) {
         return send(val->fd, buffer, n, 0);
     }
-    LOG(LOG_S, "desync UDP: group=%d, round=%d, fd=%d\n", dp->id, r, val->fd);
+    LOG(LOG_S, "desync UDP: group=%d, round=%d, fd=%lld\n", dp->id, r, (long long)val->fd);
     return desync_udp(val->fd, buffer, n, &dst->sa, dp);
 }
 
@@ -642,7 +642,7 @@ static int protect(int conn_fd, const char *path)
     sa.sun_family = AF_UNIX;
     strcpy(sa.sun_path, path);
 
-    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    warp_socket_t fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0) {
         uniperror("socket");
         return -1;
