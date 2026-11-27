@@ -287,7 +287,7 @@ int on_private_connect(struct poolhd *pool, struct eval *val, int et)
 {
     int error = val->connect_error;
     socklen_t len = sizeof(error);
-    if (!error && getsockopt(val->fd, SOL_SOCKET, SO_ERROR, &error, &len))
+    if (!error && getsockopt(val->fd, SOL_SOCKET, SO_ERROR, (char *)&error, &len))
         return -1;
     if (!error && (et & POLLERR))
         error = ECONNREFUSED;

@@ -134,6 +134,15 @@ static int wake_pair(SOCKET *writer, SOCKET *reader) {
 /* Windows 8+ asynchronous resolver: cancellation is serviced while DNS is
    pending, and its OVERLAPPED storage stays alive until completion. */
 static int resolve_target(struct engine *e, union sockaddr_u *target) {
+    /* Some MinGW headers omit these Windows 8+ declarations. Resolve the
+       documented Winsock exports rather than depend on SDK declarations. */
+    typedef INT (WSAAPI *cancel_fn)(LPHANDLE);
+    typedef INT (WSAAPI *result_fn)(LPOVERLAPPED);
+    HMODULE winsock = GetModuleHandleW(L"ws2_32.dll");
+    if (!winsock) return -1;
+    cancel_fn cancel_lookup = (cancel_fn)GetProcAddress(winsock, "GetAddrInfoExCancel");
+    result_fn lookup_result = (result_fn)GetProcAddress(winsock, "GetAddrInfoExOverlappedResult");
+    if (!cancel_lookup || !lookup_result) return -1;
     ADDRINFOEXW hints = {0}, *addresses = NULL;
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
@@ -147,13 +156,13 @@ static int resolve_target(struct engine *e, union sockaddr_u *target) {
         ULONGLONG deadline = GetTickCount64() + 10000;
         while (WaitForSingleObject(ov.hEvent, 100) == WAIT_TIMEOUT) {
             if (InterlockedCompareExchange(&e->stopping, 0, 0) || GetTickCount64() >= deadline) {
-                GetAddrInfoExCancel(&lookup);
+                cancel_lookup(&lookup);
                 /* Windows owns the request until the completion notification. */
                 WaitForSingleObject(ov.hEvent, INFINITE);
                 break;
             }
         }
-        rc = GetAddrInfoExOverlappedResult(&ov);
+        rc = lookup_result(&ov);
     }
     int ok = rc == 0 && addresses && addresses->ai_addr &&
         addresses->ai_addrlen <= sizeof(*target) &&

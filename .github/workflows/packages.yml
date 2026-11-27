@@ -128,7 +128,10 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
       - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: 21, cache: gradle }
+        with: { distribution: temurin, java-version: 21 }
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
@@ -142,19 +145,7 @@ jobs:
       - name: Test native lifecycle
         run: bash android/app/src/test/native/run_warp_dpi_lifecycle.sh
       - name: Run unit tests and build APK
-        working-directory: android
-        run: |
-          set -euo pipefail
-          for attempt in 1 2 3; do
-            if ./gradlew :app:testReleaseUnitTest :app:assembleRelease --console=plain 2>&1 | tee "$RUNNER_TEMP/android-gradle.log"; then
-              exit 0
-            fi
-            if ! grep -Eq 'Received status code 429|429 Too Many Requests' "$RUNNER_TEMP/android-gradle.log" || [ "$attempt" -eq 3 ]; then
-              exit 1
-            fi
-            echo "Maven rate limit detected; retrying after backoff"
-            sleep "$((attempt * 45))"
-          done
+        run: python3 tools/gradle_ci.py android
       - name: Verify ByeDPI inside APK
         env:
           APK: release/app-release-unsigned.apk
@@ -199,6 +190,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
       - uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -214,7 +210,7 @@ jobs:
         env:
           DESKTOP_PACKAGE_VERSION: ${{ needs.version.outputs.windows_semver }}
           DESKTOP_VERSION: ${{ inputs.release && needs.version.outputs.windows_name || format('{0}-preview', needs.version.outputs.windows_name) }}
-        run: .\android\gradlew.bat -p desktop test portableZip --stacktrace
+        run: python tools/gradle_ci.py desktop
       - name: Upload portable Windows package
         uses: actions/upload-artifact@v4
         with:
