@@ -205,7 +205,7 @@
     const dpi = radio('wpx') === 'dpi';
     $('w-proxy').classList.toggle('hidden', dpi);
     $('w-dpiHint').classList.toggle('hidden', !dpi);
-    if (dpi && window.AppDpi) $('w-dpiHint').textContent = 'Будет запущен встроенный ByeDPI: ' + window.AppDpi.describe() + '. Стратегию можно подобрать на вкладке ByeDPI.';
+    if (dpi && window.AppDpi) $('w-dpiHint').textContent = 'Будет запущен встроенный ByeDPI: ' + window.AppDpi.describe() + '. Стратегия подбирается автоматически; параметры доступны в настройках WARP.';
     const lan = $('w-nolan').checked;
     document.querySelectorAll('#w-sites input').forEach(i => { i.disabled = lan; if (lan) i.checked = false; });
   }
@@ -216,7 +216,7 @@
     if (busy) return;
     busy = true; $('w-gen').disabled = true; $('w-gen').textContent = 'Подождите…';
     try {
-      if (!account) { account = await registerWarp(); setStatus(); }
+      if (!account) { try { account = await registerWarp(); setStatus(); } finally { if (window.AppDpi) await window.AppDpi.release(); } }
       seed = newSeed();
       await render();
       toast('Конфиг готов');

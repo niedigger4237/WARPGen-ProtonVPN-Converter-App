@@ -1,6 +1,6 @@
 # WARP + Proton AWG
 
-Приложение для Android и Windows с тремя вкладками. **WARP** регистрирует аккаунт Cloudflare и генерирует конфигурацию. **Proton** преобразует готовые WireGuard-конфиги Proton VPN прямо на устройстве. **ByeDPI** запускает локальный SOCKS5-прокси и помогает подобрать стратегию для генерации конфига в случае блокировки API Cloudflare провайдером.
+Приложение для Android и Windows с двумя вкладками: **WARP** и **Proton VPN**. Android использует нативные Kotlin/Jetpack Compose генераторы из VladBox и встроенный JNI ByeDPI для регистрации WARP. Windows использует Electron и автоматически подбирает стратегию ByeDPI через локальный процесс; дополнительные параметры находятся внутри WARP.
 
 Готовый профиль можно проверить в окне результата, скопировать или сохранить для импорта в AmneziaWG, WireSock, совместимый Clash-клиент или Xray. VPN-туннель поднимает выбранный клиент.
 
@@ -8,10 +8,10 @@
 
 | Платформа | Что открыть | Возможности |
 | --- | --- | --- |
-| Android 6.0+ | APK и актуальный Android System WebView | Все три вкладки, системный выбор файлов и папок, управление ByeDPI из уведомления |
-| Windows x64 | `WarpProtonAWG-setup-*.exe` для установки или `WarpProtonAWG-portable-*.exe` для запуска без установки | Все три вкладки, системные диалоги сохранения и управление ByeDPI из трея |
+| Android 6.0+ | APK | Нативные экраны, системный выбор файлов и папок, встроенный ByeDPI |
+| Windows x64 | `WarpProtonAWG-setup-*.exe` для установки или `WarpProtonAWG-portable-*.exe` для запуска без установки | Две вкладки, системные диалоги сохранения и настройки ByeDPI внутри WARP |
 
-Подписанный APK и оба EXE публикуются в [Releases](https://github.com/niedigger4237/WARPGen-ProtonVPN-Converter-App/releases). Для проверки изменений откройте успешный запуск [Preview](https://github.com/niedigger4237/WARPGen-ProtonVPN-Converter-App/actions/workflows/preview.yml) и скачайте в разделе **Artifacts** архив `WarpProtonAWG-android` или `WarpProtonAWG-windows`. В Android-архиве Preview лежит debug APK.
+Подписанный APK и оба EXE публикуются в [Releases](https://github.com/niedigger4237/WARPGen-ProtonVPN-Converter-App/releases). Для проверки изменений откройте успешный запуск [Preview](https://github.com/niedigger4237/WARPGen-ProtonVPN-Converter-App/actions/workflows/preview.yml) и скачайте в разделе **Artifacts** архив `WarpProtonAWG-android` или `WarpProtonAWG-windows`. В Android-архиве Preview лежит подписанный APK.
 
 ## WARP — создать конфигурацию
 

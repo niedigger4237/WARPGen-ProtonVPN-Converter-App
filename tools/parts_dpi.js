@@ -42,7 +42,7 @@
   }
   const be = backend();
 
-  let present = false, running = null, aborted = false, searching = false;
+  let present = false, running = null, aborted = false, searching = false, owned = false;
   const store = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 
   const list = () => STRATS.filter(s => !(s.noWin && be && be.win));
@@ -166,13 +166,33 @@
 
   /* ---------- API для вкладки WARP ---------- */
   window.AppDpi = {
+    async release() { if (owned) { owned = false; await stop(); } },
     describe() { const s = list().find(x => x.id === $('d-strat').value); return (s ? s.name : 'своя стратегия') + (currentArgsStr() ? ` (${currentArgsStr()})` : ''); },
     async ensure() {
       if (!be) throw new Error('ByeDPI доступен только в приложении для Android и Windows');
       if (!present) throw new Error('Движок ByeDPI не вшит в эту сборку');
       if (searching) throw new Error('Идёт подбор стратегии — дождитесь окончания');
       const want = currentArgsStr();
-      if (!running || running.args !== want) await start();
+      if (!running || running.args !== want) {
+        const candidates = [want, ...list().map(s => s.args)].filter((x,i,a)=>a.indexOf(x)===i);
+        const timeout = parseInt($('d-timeout').value, 10) || 6000;
+        for (const args of candidates) {
+          try {
+            if (running) await stop();
+            $('d-args').value = args;
+            await start();
+            const probe = await be.probe('https://api.cloudflareclient.com/', running.port, timeout, Date.now());
+            if (probe.ok && probe.status >= 200 && probe.status < 500 && probe.status !== 429) {
+              owned = true;
+              $('d-strat').value = (list().find(s=>s.args===args) || {id:'custom'}).id;
+              saveStrategy();
+              break;
+            }
+          } catch (_) {}
+          await stop();
+        }
+        if (!running) { $('d-args').value = want; throw new Error('Не найдена рабочая стратегия ByeDPI'); }
+      }
       return `socks5://127.0.0.1:${running.port}`;
     },
   };

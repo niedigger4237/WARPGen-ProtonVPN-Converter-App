@@ -91,7 +91,6 @@ body{padding-top:0}
   <div class="seg" role="radiogroup" aria-label="Режим приложения" id="tabs">
     <label><input type="radio" name="tab" value="warp" checked><span>WARP</span></label>
     <label><input type="radio" name="tab" value="proton"><span>Proton</span></label>
-    <label><input type="radio" name="tab" value="dpi"><span>ByeDPI</span></label>
   </div>
 </div>
 
@@ -330,10 +329,7 @@ body{padding-top:0}
 
 </section>
 
-<section id="view-dpi" class="view hidden">
-  <h1>Обход блокировок (ByeDPI)</h1>
-  <p class="sub">Локальный SOCKS5-прокси, который изменяет первые пакеты соединения, чтобы обойти DPI-фильтрацию. Подберите стратегию автоматически и используйте её для получения WARP-ключей или в других программах (socks5://127.0.0.1:порт).</p>
-<div class="grid">
+<template id="unused-dpi-template"><div class="grid">
   <section class="panel span2">
     <h2>Встроенный ByeDPI</h2>
     <p class="hint" id="d-status" style="margin:0 0 10px">Проверка…</p>
@@ -377,7 +373,7 @@ body{padding-top:0}
   </section>
 </div>
 
-</section>
+</template>
 </main>
 
 <div id="toast" role="status" aria-live="polite"></div>
@@ -872,17 +868,18 @@ async function AppSave(files, title){
 
 /* ---------- переключатель режимов ---------- */
 (function(){
-  const views = {warp: document.getElementById('view-warp'), proton: document.getElementById('view-proton'), dpi: document.getElementById('view-dpi')};
+  const views = {warp: document.getElementById('view-warp'), proton: document.getElementById('view-proton')};
   function show(name){
     for (const k in views) views[k].classList.toggle('hidden', k!==name);
     document.querySelector(`#tabs input[value="${name}"]`).checked = true;
-    document.title = {warp:'WARP генератор', proton:'Proton → AWG', dpi:'ByeDPI'}[name];
+    document.title = {warp:'WARP генератор', proton:'Proton → AWG'}[name];
     try { localStorage.setItem('tab', name); } catch(e){}
     window.scrollTo(0,0);
   }
   document.querySelectorAll('#tabs input').forEach(i=>i.addEventListener('change', ()=>show(i.value)));
   let saved = null; try { saved = localStorage.getItem('tab'); } catch(e){}
   show(views[saved] ? saved : 'warp');
+  const detail = document.createElement('details'); detail.className = 'panel'; detail.innerHTML = '<summary>Настройки ByeDPI для WARP</summary>'; detail.append(document.getElementById('unused-dpi-template').content); views.warp.append(detail);
 })();
 </script>
 <script>
@@ -1094,7 +1091,7 @@ async function AppSave(files, title){
     const dpi = radio('wpx') === 'dpi';
     $('w-proxy').classList.toggle('hidden', dpi);
     $('w-dpiHint').classList.toggle('hidden', !dpi);
-    if (dpi && window.AppDpi) $('w-dpiHint').textContent = 'Будет запущен встроенный ByeDPI: ' + window.AppDpi.describe() + '. Стратегию можно подобрать на вкладке ByeDPI.';
+    if (dpi && window.AppDpi) $('w-dpiHint').textContent = 'Будет запущен встроенный ByeDPI: ' + window.AppDpi.describe() + '. Стратегия подбирается автоматически; параметры доступны в настройках WARP.';
     const lan = $('w-nolan').checked;
     document.querySelectorAll('#w-sites input').forEach(i => { i.disabled = lan; if (lan) i.checked = false; });
   }
@@ -1105,7 +1102,7 @@ async function AppSave(files, title){
     if (busy) return;
     busy = true; $('w-gen').disabled = true; $('w-gen').textContent = 'Подождите…';
     try {
-      if (!account) { account = await registerWarp(); setStatus(); }
+      if (!account) { try { account = await registerWarp(); setStatus(); } finally { if (window.AppDpi) await window.AppDpi.release(); } }
       seed = newSeed();
       await render();
       toast('Конфиг готов');
@@ -1191,7 +1188,7 @@ async function AppSave(files, title){
   }
   const be = backend();
 
-  let present = false, running = null, aborted = false, searching = false;
+  let present = false, running = null, aborted = false, searching = false, owned = false;
   const store = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 
   const list = () => STRATS.filter(s => !(s.noWin && be && be.win));
@@ -1315,13 +1312,33 @@ async function AppSave(files, title){
 
   /* ---------- API для вкладки WARP ---------- */
   window.AppDpi = {
+    async release() { if (owned) { owned = false; await stop(); } },
     describe() { const s = list().find(x => x.id === $('d-strat').value); return (s ? s.name : 'своя стратегия') + (currentArgsStr() ? ` (${currentArgsStr()})` : ''); },
     async ensure() {
       if (!be) throw new Error('ByeDPI доступен только в приложении для Android и Windows');
       if (!present) throw new Error('Движок ByeDPI не вшит в эту сборку');
       if (searching) throw new Error('Идёт подбор стратегии — дождитесь окончания');
       const want = currentArgsStr();
-      if (!running || running.args !== want) await start();
+      if (!running || running.args !== want) {
+        const candidates = [want, ...list().map(s => s.args)].filter((x,i,a)=>a.indexOf(x)===i);
+        const timeout = parseInt($('d-timeout').value, 10) || 6000;
+        for (const args of candidates) {
+          try {
+            if (running) await stop();
+            $('d-args').value = args;
+            await start();
+            const probe = await be.probe('https://api.cloudflareclient.com/', running.port, timeout, Date.now());
+            if (probe.ok && probe.status >= 200 && probe.status < 500 && probe.status !== 429) {
+              owned = true;
+              $('d-strat').value = (list().find(s=>s.args===args) || {id:'custom'}).id;
+              saveStrategy();
+              break;
+            }
+          } catch (_) {}
+          await stop();
+        }
+        if (!running) { $('d-args').value = want; throw new Error('Не найдена рабочая стратегия ByeDPI'); }
+      }
       return `socks5://127.0.0.1:${running.port}`;
     },
   };
