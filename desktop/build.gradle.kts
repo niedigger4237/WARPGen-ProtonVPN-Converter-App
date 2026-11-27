@@ -5,9 +5,10 @@ plugins {
 }
 kotlin {
     jvmToolchain(17)
-    sourceSets.main { kotlin.srcDir("../shared/src/main/kotlin") }
+    sourceSets.main { kotlin.srcDirs("../shared/core/src/main/kotlin", "../shared/ui/src/main/kotlin") }
+    sourceSets.test { kotlin.srcDir("../shared/core/src/test/kotlin") }
 }
-sourceSets.main { resources.srcDir("../shared/src/main/resources") }
+sourceSets.main { resources.srcDir("../shared/core/src/main/resources") }
 
 dependencies {
     implementation(compose.desktop.currentOs)
