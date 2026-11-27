@@ -1,7 +1,7 @@
 plugins {
-    id 'com.android.application' version '8.7.2'
-    id 'org.jetbrains.kotlin.android' version '2.1.21'
-    id 'org.jetbrains.kotlin.plugin.compose' version '2.1.21'
+    id 'com.android.application' version '8.10.1'
+    id 'org.jetbrains.kotlin.android' version '2.2.21'
+    id 'org.jetbrains.kotlin.plugin.compose' version '2.2.21'
 }
 
 def taggedName = providers.environmentVariable('VERSION_NAME')
@@ -56,5 +56,5 @@ dependencies {
     implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.json:json:20240303'
-    implementation 'com.squareup.okhttp3:okhttp:5.5.1'
+    implementation 'com.squareup.okhttp3:okhttp:5.1.0'
 }
