@@ -19,8 +19,6 @@
     { id: 'df',     name: 'Disorder + Fake', args: '--disorder 1 --fake -1 --ttl 8' },
     { id: 'auto1',  name: 'Авто: disorder + TLS-record', args: '--disorder 1 --auto=torst --tlsrec 1+s' },
     { id: 'auto2',  name: 'Авто: fake (ssl_err)', args: '--fake -1 --ttl 10 --auto=ssl_err --fake -1 --ttl 5' },
-    { id: 'md5',    name: 'Fake + md5sig (только Android)', args: '--fake -1 --md5sig', noWin: true },
-    { id: 'md5oob', name: 'OOB + Fake + md5sig (только Android)', args: '--oob 1 --fake -1 --md5sig', noWin: true },
   ];
   const TARGETS = [
     { id: 'cf', name: 'Cloudflare API', url: 'https://api.cloudflareclient.com/', on: true },
@@ -36,16 +34,16 @@
   function backend() {
     if (window.warpBridge && window.warpBridge.dpi) {
       const d = window.warpBridge.dpi;
-      return { win: window.warpBridge.platform !== 'android', available: () => d.available(), start: (a, p, n, t) => d.start(a, p, n, t), stop: () => d.stop(), status: () => d.status(), probe: (u, p, t, r) => d.probe(u, p, t, r) };
+      return { available: () => d.available(), start: (a, p, n, t) => d.start(a, p, n, t), stop: () => d.stop(), status: () => d.status(), probe: (u, p, t, r) => d.probe(u, p, t, r) };
     }
     return null;
   }
   const be = backend();
 
-  let present = false, running = null, aborted = false, searching = false;
+  let present = false, running = null, aborted = false, searching = false, owned = false;
   const store = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 
-  const list = () => STRATS.filter(s => !(s.noWin && be && be.win));
+  const list = () => STRATS;
   const port = () => { const n = parseInt($('d-port').value, 10); return n >= 1024 && n <= 65535 ? n : 1080; };
   function parseArgs(str) {
     const t = str.trim() ? str.trim().split(/\s+/) : [];
@@ -59,7 +57,7 @@
 
   function setStatus() {
     const st = $('d-status');
-    if (!be) { st.textContent = 'ByeDPI работает только в приложении для Android и Windows. В браузере доступен только просмотр стратегий.'; }
+    if (!be) { st.textContent = 'ByeDPI в веб-интерфейсе работает только в приложении Windows. В браузере доступен только просмотр стратегий.'; }
     else if (!present) { st.textContent = 'Движок ByeDPI не вшит в эту сборку (не удалась сборка из исходников). Можно запустить ByeDPI отдельным приложением и указать его адрес (socks5://127.0.0.1:1080) как свой прокси на вкладке WARP.'; }
     else if (running) { st.textContent = '● Запущен'; }
     else { st.textContent = '○ Остановлен'; }
@@ -147,7 +145,7 @@
     $('d-port').value = store.get('dpi.port', '');
     $('d-notify').checked = store.get('dpi.notify', '1') !== '0';
     $('d-notify').onchange = () => store.set('dpi.notify', $('d-notify').checked ? '1' : '0');
-    // состояние мог изменить внешний «Стоп» (кнопка в уведомлении, трей) или аварийное завершение процесса
+    // состояние мог изменить внешний «Стоп» (трей) или аварийное завершение процесса
     setInterval(async () => { if (running && be && !searching) { try { const st = await be.status(); if (st && !st.running) { running = null; setStatus(); } } catch {} } }, 3000);
     const sid = store.get('dpi.strat', 's1'); const known = list().some(s => s.id === sid);
     $('d-strat').value = known || sid === 'custom' ? sid : 's1';
@@ -166,13 +164,33 @@
 
   /* ---------- API для вкладки WARP ---------- */
   window.AppDpi = {
+    async release() { if (owned) { owned = false; await stop(); } },
     describe() { const s = list().find(x => x.id === $('d-strat').value); return (s ? s.name : 'своя стратегия') + (currentArgsStr() ? ` (${currentArgsStr()})` : ''); },
     async ensure() {
-      if (!be) throw new Error('ByeDPI доступен только в приложении для Android и Windows');
+      if (!be) throw new Error('ByeDPI в веб-интерфейсе доступен только в приложении Windows');
       if (!present) throw new Error('Движок ByeDPI не вшит в эту сборку');
       if (searching) throw new Error('Идёт подбор стратегии — дождитесь окончания');
       const want = currentArgsStr();
-      if (!running || running.args !== want) await start();
+      if (!running || running.args !== want) {
+        const candidates = [want, ...list().map(s => s.args)].filter((x,i,a)=>a.indexOf(x)===i);
+        const timeout = parseInt($('d-timeout').value, 10) || 6000;
+        for (const args of candidates) {
+          try {
+            if (running) await stop();
+            $('d-args').value = args;
+            await start();
+            const probe = await be.probe('https://api.cloudflareclient.com/', running.port, timeout, Date.now());
+            if (probe.ok && probe.status >= 200 && probe.status < 500 && probe.status !== 429) {
+              owned = true;
+              $('d-strat').value = (list().find(s=>s.args===args) || {id:'custom'}).id;
+              saveStrategy();
+              break;
+            }
+          } catch (_) {}
+          await stop();
+        }
+        if (!running) { $('d-args').value = want; throw new Error('Не найдена рабочая стратегия ByeDPI'); }
+      }
       return `socks5://127.0.0.1:${running.port}`;
     },
   };

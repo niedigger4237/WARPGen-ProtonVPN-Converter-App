@@ -1,0 +1,9 @@
+https://github.com/hufrea/byedpi
+v0.17.3 (7efde1b1296eaaa187b70e951894dde17527489c)
+
+The Android integration reuses the argument parser, packet transformations,
+and TCP event loop. Its private stream replaces the standalone listeners and
+proxy protocols. LICENSE contains the upstream MIT license.
+
+The TCP connect trigger is adapted from hufrea/ByeDPI commit
+ba532298de7b28cfe854aea83d061369d13ca290.

@@ -1,5 +1,7 @@
 plugins {
-    id 'com.android.application' version '8.7.2'
+    id 'com.android.application' version '8.10.1'
+    id 'org.jetbrains.kotlin.android' version '2.2.21'
+    id 'org.jetbrains.kotlin.plugin.compose' version '2.2.21'
 }
 
 def taggedName = providers.environmentVariable('VERSION_NAME')
@@ -19,13 +21,46 @@ android {
         versionName taggedName.orElse(localVersion.map { it.name }).get()
         versionCode taggedCode.map { it.toInteger() }.orElse(localVersion.map { it.code }).get()
     }
-    sourceSets.main.assets.srcDirs = ["../../www"]
+    ndkVersion '25.0.8775105'
+    externalNativeBuild {
+        cmake {
+            path file('src/main/cpp/warp_dpi/CMakeLists.txt')
+            version '3.22.1'
+        }
+    }
+    defaultConfig {
+        ndk { abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64' }
+    }
+    sourceSets {
+        main.java.srcDirs '../../shared/core/src/main/kotlin', '../../shared/ui/src/main/kotlin'
+        main.assets.srcDir '../../shared/core/src/main/resources'
+        test.java.srcDir '../../shared/core/src/test/kotlin'
+        test.resources.srcDir '../../shared/core/src/main/resources'
+    }
+    buildFeatures { compose true }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = '17' }
     packagingOptions.jniLibs.useLegacyPackaging = true
 }
 
 dependencies {
     implementation 'androidx.core:core:1.15.0'
     implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'androidx.webkit:webkit:1.12.1'
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation platform('androidx.compose:compose-bom:2024.09.03')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.foundation:foundation'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-extended'
+    implementation 'androidx.activity:activity-compose:1.10.1'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.7'
+    implementation 'androidx.documentfile:documentfile:1.0.1'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.78.1'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
+    implementation 'com.squareup.okhttp3:okhttp:5.1.0'
 }

@@ -30,7 +30,7 @@ def resolve_tag(release, platform):
             pass
     if release:
         raise SystemExit(f"Release requires a {platform}-vMAJOR.MINOR[.PATCH] tag")
-    return "v1.0"  # Legacy main preview before the first release tag.
+    return "v2.0"  # Shared native preview before the first platform release.
 
 
 def versions(tag, platform="android", release=False):

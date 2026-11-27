@@ -39,7 +39,7 @@
     if (window.warpBridge) return window.warpBridge.request(method, endpoint, body || null, token || null, proxy);
     const headers = { 'User-Agent': 'CloudflareWarp/1.0', 'Content-Type': 'application/json' };
     if (token) headers.Authorization = `Bearer ${token}`;
-    if (proxy) throw new Error('Прокси работает только в приложении для Android и Windows');
+    if (proxy) throw new Error('Прокси в веб-интерфейсе работает только в приложении Windows');
     const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 20000);
     try {
       const r = await fetch(API + endpoint, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: ctl.signal });
@@ -205,7 +205,7 @@
     const dpi = radio('wpx') === 'dpi';
     $('w-proxy').classList.toggle('hidden', dpi);
     $('w-dpiHint').classList.toggle('hidden', !dpi);
-    if (dpi && window.AppDpi) $('w-dpiHint').textContent = 'Будет запущен встроенный ByeDPI: ' + window.AppDpi.describe() + '. Стратегию можно подобрать на вкладке ByeDPI.';
+    if (dpi && window.AppDpi) $('w-dpiHint').textContent = 'Будет запущен встроенный ByeDPI: ' + window.AppDpi.describe() + '. Стратегия подбирается автоматически; параметры доступны в настройках WARP.';
     const lan = $('w-nolan').checked;
     document.querySelectorAll('#w-sites input').forEach(i => { i.disabled = lan; if (lan) i.checked = false; });
   }
@@ -216,14 +216,14 @@
     if (busy) return;
     busy = true; $('w-gen').disabled = true; $('w-gen').textContent = 'Подождите…';
     try {
-      if (!account) { account = await registerWarp(); setStatus(); }
+      if (!account) { try { account = await registerWarp(); setStatus(); } finally { if (window.AppDpi) await window.AppDpi.release(); } }
       seed = newSeed();
       await render();
       toast('Конфиг готов');
     } catch (e) {
       const msg = String(e.message || e);
       const net = /Failed to fetch|NetworkError|Load failed|abort|timeout/i.test(msg);
-      $('w-hint').textContent = 'Ошибка: ' + (net ? 'нет связи с Cloudflare. Проверьте интернет (регистрация WARP работает только в приложении для Android и Windows) и повторите через пару минут.' : msg + (/^Укажите|только в приложении|ByeDPI|Движок/.test(msg) ? '' : ' — подождите несколько минут и повторите.'));
+      $('w-hint').textContent = 'Ошибка: ' + (net ? 'нет связи с Cloudflare. Проверьте интернет (для веб-интерфейса рекомендуется приложение Windows) и повторите через пару минут.' : msg + (/^Укажите|только в приложении|ByeDPI|Движок/.test(msg) ? '' : ' — подождите несколько минут и повторите.'));
       toast('Не удалось получить конфиг');
     } finally { busy = false; $('w-gen').disabled = false; $('w-gen').textContent = 'Сгенерировать'; }
   }

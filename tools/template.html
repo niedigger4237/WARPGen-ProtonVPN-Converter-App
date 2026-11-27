@@ -33,7 +33,6 @@ body{padding-top:0}
   <div class="seg" role="radiogroup" aria-label="Режим приложения" id="tabs">
     <label><input type="radio" name="tab" value="warp" checked><span>WARP</span></label>
     <label><input type="radio" name="tab" value="proton"><span>Proton</span></label>
-    <label><input type="radio" name="tab" value="dpi"><span>ByeDPI</span></label>
   </div>
 </div>
 
@@ -50,11 +49,8 @@ __WARP_HTML__
 __PROTON_HTML__
 </section>
 
-<section id="view-dpi" class="view hidden">
-  <h1>Обход блокировок (ByeDPI)</h1>
-  <p class="sub">Локальный SOCKS5-прокси, который изменяет первые пакеты соединения, чтобы обойти DPI-фильтрацию. Подберите стратегию автоматически и используйте её для получения WARP-ключей или в других программах (socks5://127.0.0.1:порт).</p>
-__DPI_HTML__
-</section>
+<template id="unused-dpi-template">__DPI_HTML__
+</template>
 </main>
 
 <div id="toast" role="status" aria-live="polite"></div>
@@ -67,7 +63,6 @@ __X25519__
 </script>
 <script>
 "use strict";
-__ANDROID_BRIDGE__
 /* ---------- общие функции оболочки ---------- */
 function AppToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(AppToast.t); AppToast.t=setTimeout(()=>t.classList.remove('on'),2400); }
 
@@ -116,17 +111,18 @@ async function AppSave(files, title){
 
 /* ---------- переключатель режимов ---------- */
 (function(){
-  const views = {warp: document.getElementById('view-warp'), proton: document.getElementById('view-proton'), dpi: document.getElementById('view-dpi')};
+  const views = {warp: document.getElementById('view-warp'), proton: document.getElementById('view-proton')};
   function show(name){
     for (const k in views) views[k].classList.toggle('hidden', k!==name);
     document.querySelector(`#tabs input[value="${name}"]`).checked = true;
-    document.title = {warp:'WARP генератор', proton:'Proton → AWG', dpi:'ByeDPI'}[name];
+    document.title = {warp:'WARP генератор', proton:'Proton → AWG'}[name];
     try { localStorage.setItem('tab', name); } catch(e){}
     window.scrollTo(0,0);
   }
   document.querySelectorAll('#tabs input').forEach(i=>i.addEventListener('change', ()=>show(i.value)));
   let saved = null; try { saved = localStorage.getItem('tab'); } catch(e){}
   show(views[saved] ? saved : 'warp');
+  const detail = document.createElement('details'); detail.className = 'panel'; detail.innerHTML = '<summary>Настройки ByeDPI для WARP</summary>'; detail.append(document.getElementById('unused-dpi-template').content); views.warp.append(detail);
 })();
 </script>
 <script>

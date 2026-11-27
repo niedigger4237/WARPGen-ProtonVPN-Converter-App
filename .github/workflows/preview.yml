@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       legacy_windows:
-        description: 'Also build legacy Electron on native-shared (main already uses Electron)'
+        description: 'Also build legacy Electron (optional)'
         type: boolean
         default: false
 

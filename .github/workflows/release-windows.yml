@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: WarpProtonAWG-windows
+          name: WarpProtonAWG-compose-desktop
           path: packages
       - name: Publish Windows release
         env:
@@ -63,11 +63,6 @@ jobs:
             exit 1
           fi
           VERSION="${TAG#windows-v}"
-          shopt -s nullglob
-          assets=(packages/*.exe)
-          if (( ${#assets[@]} == 0 )); then
-            echo "::error::No Windows executable found"
-            exit 1
-          fi
-          for asset in "${assets[@]}"; do test -s "$asset"; done
-          gh release create "$TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Windows $VERSION" --generate-notes
+          ASSET="packages/WarpProtonAWG-$VERSION-windows-x64.zip"
+          test -s "$ASSET"
+          gh release create "$TAG" "$ASSET" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Windows $VERSION" --generate-notes
