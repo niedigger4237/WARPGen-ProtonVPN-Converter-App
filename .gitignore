@@ -11,3 +11,5 @@ byedpi-dl/
 *.keystore
 desktop/.gradle/
 desktop/build/
+/desktop/data/
+/data/

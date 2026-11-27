@@ -40,7 +40,8 @@ fun main() = application {
         val presets = remember { ProtonPresets(::asset) }
         var sources by remember { mutableStateOf<List<ProtonParser.Source>>(emptyList()) }
         var tab by remember { mutableStateOf(0) }
-        var theme by remember { mutableStateOf("System") }
+        val preferences = remember { PortableSettings.open() }
+        var theme by remember { mutableStateOf(preferences.loadTheme()) }
         var message by remember { mutableStateOf("") }
         val dark = when(theme) { "Dark" -> true; "Light" -> false; else -> isSystemInDarkTheme() }
         fun copy(text: String) {
@@ -107,7 +108,10 @@ fun main() = application {
                         NavigationDrawerItem(label = { Text("WARP") }, selected = tab == 0, onClick = { tab = 0 })
                         NavigationDrawerItem(label = { Text("Proton VPN") }, selected = tab == 1, onClick = { tab = 1 })
                         Spacer(Modifier.weight(1f))
-                        TextButton(onClick = { theme = when(theme) { "System" -> "Light"; "Light" -> "Dark"; else -> "System" } }) { Text("Theme: $theme") }
+                        TextButton(onClick = {
+                            theme = when(theme) { "System" -> "Light"; "Light" -> "Dark"; else -> "System" }
+                            if (!preferences.saveTheme(theme)) message = "Unable to save settings in the portable data folder"
+                        }) { Text("Theme: $theme") }
                     }
                     VerticalDivider()
                     Column(Modifier.weight(1f).fillMaxHeight()) {

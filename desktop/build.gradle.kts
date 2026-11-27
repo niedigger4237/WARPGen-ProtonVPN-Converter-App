@@ -1,5 +1,3 @@
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-
 plugins {
     kotlin("jvm") version "2.2.21"
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.21"
@@ -26,10 +24,24 @@ compose.desktop {
     application {
         mainClass = "com.local.protonawg.desktop.MainKt"
         nativeDistributions {
-            targetFormats(TargetFormat.Exe, TargetFormat.Msi)
             packageName = "WarpProtonAWG"
             packageVersion = "2.0.0"
             modules("java.desktop", "java.net.http", "java.naming", "java.logging", "jdk.crypto.ec")
         }
+    }
+}
+
+// Package the application image, not an installer. The bundled runtime travels with the EXE.
+tasks.register<Zip>("portableZip") {
+    dependsOn("createDistributable")
+    val image = layout.buildDirectory.dir("compose/binaries/main/app/WarpProtonAWG")
+    from(image) { into("WarpProtonAWG") }
+    destinationDirectory.set(layout.buildDirectory.dir("portable"))
+    archiveFileName.set("WarpProtonAWG-${providers.environmentVariable("DESKTOP_VERSION").orElse("2.0.0").get()}-windows-x64.zip")
+    isPreserveFileTimestamps = false
+    isReproducibleFileOrder = true
+    doFirst {
+        require(image.get().file("WarpProtonAWG.exe").asFile.isFile) { "Windows launcher missing" }
+        require(image.get().file("runtime/bin/java.dll").asFile.isFile) { "Bundled Java runtime missing" }
     }
 }
