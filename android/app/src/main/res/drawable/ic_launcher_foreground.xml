@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The centered 76% artwork preserves the shield inside the adaptive mask.
+     The original PNG remains shared with the README and legacy Android launcher. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/icon"
+    android:inset="12%" />

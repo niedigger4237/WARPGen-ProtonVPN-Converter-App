@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- A single opaque shield outline and conversion arrows, within the safe zone. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineJoin="round"
+        android:strokeLineCap="round"
+        android:pathData="M54,25 C45,31 36,34 29,36 L29,51 C29,66 39,77 54,84 C69,77 79,66 79,51 L79,36 C72,34 63,31 54,25 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M39,52 C43,44 51,41 61,44 L61,38 L71,49 L59,58 L60,52 C51,49 44,49 39,52 Z M69,59 C65,67 57,70 47,67 L47,73 L37,62 L49,53 L48,59 C57,62 64,62 69,59 Z" />
+</vector>
