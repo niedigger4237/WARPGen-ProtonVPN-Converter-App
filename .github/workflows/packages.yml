@@ -79,6 +79,9 @@ jobs:
     if: ${{ inputs.platform != 'android' && inputs.legacy_windows && !inputs.release }}
     needs: [version, byedpi]
     runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: legacy/electron
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -92,7 +95,7 @@ jobs:
       - name: Положить ciadpi.exe в сборку
         shell: pwsh
         run: |
-          Copy-Item byedpi-dl/win/ciadpi.exe byedpi-bin/ciadpi.exe -ErrorAction Stop
+          Copy-Item ../../byedpi-dl/win/ciadpi.exe byedpi-bin/ciadpi.exe -ErrorAction Stop
       - run: npm ci
       - run: python tools/build.py
       - name: Set Windows package version
@@ -110,7 +113,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: WarpProtonAWG-windows
-          path: dist/*.exe
+          path: legacy/electron/dist/*.exe
           if-no-files-found: error
 
   android:
