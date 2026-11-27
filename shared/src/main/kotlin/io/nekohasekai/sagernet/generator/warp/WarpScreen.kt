@@ -20,7 +20,8 @@ import androidx.compose.material.icons.filled.Settings
 @Composable
 internal fun WarpScreen(model: WarpViewModel, onCopy: (String) -> Unit,
                         onSave: (WarpConfExporter.Output) -> Unit,
-                        onImport: (String) -> Unit) {
+                        onImport: (String) -> Unit,
+                        dpiSettings: (@Composable (() -> Unit) -> Unit)? = null) {
     val state by model.state.collectAsState()
     val s = state.settings
     val enabled = !state.busy
@@ -36,7 +37,7 @@ internal fun WarpScreen(model: WarpViewModel, onCopy: (String) -> Unit,
             }
         }
         if (state.output == null || state.busy) {
-        WarpTransportChoice(state.transport, enabled, model::transport)
+        WarpTransportChoice(state.transport, enabled, model.availableTransports, model::transport, dpiSettings)
         state.strategyProgress?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         WarpTileChoice("Config Format", Icons.Filled.Description, WarpGenerator.Format.values().toList(), s.format, enabled,
                 { model.settings(s.copy(format = it)) }, { format -> when (format) {
@@ -193,7 +194,7 @@ internal fun WarpScreen(model: WarpViewModel, onCopy: (String) -> Unit,
 }
 
 @Composable
-private fun WarpTransportChoice(value: WarpViewModel.Transport, enabled: Boolean, change: (WarpViewModel.Transport) -> Unit) {
+private fun WarpTransportChoice(value: WarpViewModel.Transport, enabled: Boolean, options: List<WarpViewModel.Transport>, change: (WarpViewModel.Transport) -> Unit, dpiSettings: (@Composable (() -> Unit) -> Unit)?) {
     var expanded by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(false) }
     fun label(t: WarpViewModel.Transport) = if (t == WarpViewModel.Transport.BYEDPI) "ByeDPI (automatic)" else if (t == WarpViewModel.Transport.LOCAL_PROXY) "Local proxy" else "Direct"
@@ -205,7 +206,7 @@ private fun WarpTransportChoice(value: WarpViewModel.Transport, enabled: Boolean
             }
         }
         DropdownMenu(expanded, { expanded = false }) {
-            WarpViewModel.Transport.values().forEach { option ->
+            options.forEach { option ->
                 DropdownMenuItem(text = { Text(label(option)) },
                     onClick = { expanded = false; change(option) },
                     trailingIcon = if (option == WarpViewModel.Transport.BYEDPI) {
@@ -218,7 +219,7 @@ private fun WarpTransportChoice(value: WarpViewModel.Transport, enabled: Boolean
             }
         }
     }
-    if (settings && enabled) WarpDpiSettingsDialog { settings = false }
+    if (settings && enabled) dpiSettings?.invoke { settings = false }
 }
 
 @Composable private fun WarpTile(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, enabled: Boolean, onClick: () -> Unit, expanded: Boolean = false) {

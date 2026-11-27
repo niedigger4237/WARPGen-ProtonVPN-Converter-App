@@ -1,8 +1,6 @@
 package io.nekohasekai.sagernet.generator.warp
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -12,7 +10,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-internal class WarpViewModel(application: Application) : AndroidViewModel(application) {
+internal class WarpViewModel(
+    readAsset: (String) -> String,
+    private val scope: CoroutineScope,
+    private val registerDpi: (suspend ((Int, Int, DpiStrategySelector.Strategy) -> Unit) -> WarpRegistration.Account)? = null
+) {
+    val availableTransports get() = if (registerDpi == null)
+        listOf(Transport.DIRECT, Transport.LOCAL_PROXY) else Transport.entries.toList()
     enum class Transport { DIRECT, LOCAL_PROXY, BYEDPI }
     data class State(
         val settings: WarpGenerator.Settings = WarpGenerator.Settings(),
@@ -23,8 +27,7 @@ internal class WarpViewModel(application: Application) : AndroidViewModel(applic
         val strategyProgress: String? = null,
         val error: String? = null
     )
-    private val generator = WarpGenerator { name -> application.assets.open(name).bufferedReader().use { it.readText() } }
-    private val dpiTransport = WarpDpiTransport(application)
+    private val generator = WarpGenerator(readAsset)
     val presets get() = generator.presets
     private val mutableState = MutableStateFlow(State())
     val state = mutableState.asStateFlow()
@@ -41,7 +44,7 @@ internal class WarpViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun transport(value: Transport) {
-        if (!mutableState.value.busy)
+        if (!mutableState.value.busy && value in availableTransports)
             mutableState.value = mutableState.value.copy(transport = value)
     }
 
@@ -71,10 +74,10 @@ internal class WarpViewModel(application: Application) : AndroidViewModel(applic
         val existing = account
         val previousSeed = seed
         mutableState.value = snapshot.copy(busy = true, error = null, output = null)
-        job = viewModelScope.launch {
+        job = scope.launch {
             try {
                 val current = existing ?: if (snapshot.transport == Transport.BYEDPI) {
-                    dpiTransport.register { index, count, strategy ->
+                    requireNotNull(registerDpi) { "Native ByeDPI is not available on this platform" }.invoke { index, count, strategy ->
                         mutableState.update { state ->
                             state.copy(strategyProgress = "ByeDPI strategy $index/$count · ${strategy.name}")
                         }

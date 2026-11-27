@@ -28,7 +28,8 @@ import io.nekohasekai.sagernet.generator.proton.ProtonParser
 import io.nekohasekai.sagernet.generator.proton.ProtonPresets
 import io.nekohasekai.sagernet.generator.proton.ProtonScreen
 import io.nekohasekai.sagernet.generator.warp.WarpScreen
-import io.nekohasekai.sagernet.generator.warp.WarpViewModel
+import io.nekohasekai.sagernet.generator.warp.AndroidWarpViewModel
+import io.nekohasekai.sagernet.generator.warp.WarpDpiSettingsDialog
 import io.nekohasekai.sagernet.ktx.CreateExportDocument
 import io.nekohasekai.sagernet.ktx.ensureExportExtension
 import io.nekohasekai.sagernet.ktx.exportMimeType
@@ -43,7 +44,7 @@ class ConverterActivity : ComponentActivity() {
         internal var pending: List<Pair<String, String>> = emptyList()
     }
     private val files by lazy { ViewModelProvider(this)[FileState::class.java] }
-    private val warp by lazy { ViewModelProvider(this)[WarpViewModel::class.java] }
+    private val warp by lazy { ViewModelProvider(this)[AndroidWarpViewModel::class.java].model }
     private val presets by lazy { ProtonPresets { name -> applicationContext.assets.open(name).bufferedReader().use { it.readText() } } }
     private fun notify(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     private fun copy(text: String) {
@@ -140,7 +141,7 @@ class ConverterActivity : ComponentActivity() {
                         Box(Modifier.weight(1f).fillMaxWidth()) {
                             val stateHolder = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
                             stateHolder.SaveableStateProvider(tab) {
-                                if (tab == 0) WarpScreen(warp, ::copy, { saveOutputs(listOf(it.fileName to it.text)) }, ::share)
+                                if (tab == 0) WarpScreen(warp, ::copy, { saveOutputs(listOf(it.fileName to it.text)) }, ::share, dpiSettings = { dismiss -> WarpDpiSettingsDialog(dismiss) })
                                 else ProtonScreen(presets, files.sources.value, { files.sources.value = it },
                                     onPick = { pick.launch(arrayOf("*/*")) }, onCopy = ::copy,
                                     onSave = { outputs -> saveOutputs(outputs.map { it.fileName to it.text }) }, onImport = ::share)
