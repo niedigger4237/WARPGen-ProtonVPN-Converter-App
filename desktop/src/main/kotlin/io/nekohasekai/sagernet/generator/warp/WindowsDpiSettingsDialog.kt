@@ -37,6 +37,7 @@ internal fun WindowsDpiSettingsDialog(store: WindowsDpiSettings, dismiss: () -> 
             ) {
                 Text("General", style = MaterialTheme.typography.titleMedium)
                 saveError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                Text("Linux-only flags (md5sig, drop-sack, wait-send) are not supported on Windows. Strategies using them are skipped.", style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(
                     timeout, { timeout = it }, label = { Text("Probe timeout (seconds)") },
                     singleLine = true, isError = seconds == null,

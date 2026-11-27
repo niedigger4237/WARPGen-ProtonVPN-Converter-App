@@ -16,7 +16,7 @@ add_library(warp_dpi_windows SHARED windows_engine.c windows_jni.c
     "${SHARED_NATIVE}/byedpi/packets.c")
 target_include_directories(warp_dpi_windows PRIVATE "${SHARED_NATIVE}" ${JNI_INCLUDE_DIRS})
 target_compile_features(warp_dpi_windows PRIVATE c_std_11)
-target_compile_definitions(warp_dpi_windows PRIVATE _WIN32_WINNT=0x0601 WIN32_LEAN_AND_MEAN)
+target_compile_definitions(warp_dpi_windows PRIVATE _WIN32_WINNT=0x0602 WIN32_LEAN_AND_MEAN)
 target_link_libraries(warp_dpi_windows PRIVATE ws2_32 mswsock)
 target_link_options(warp_dpi_windows PRIVATE -static-libgcc)
 set_target_properties(warp_dpi_windows PROPERTIES PREFIX "")

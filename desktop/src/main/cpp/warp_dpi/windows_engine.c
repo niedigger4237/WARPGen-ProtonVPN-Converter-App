@@ -26,6 +26,16 @@ static void close_socket(SOCKET *s) {
 }
 
 static int configure(struct warp_arguments *args, bool runtime, char *error) {
+    /* These switches rely on Linux TCP internals. Never silently apply a
+       different strategy than the one selected by the user. */
+    for (int i = 2; i < args->count; ++i) {
+        const char *arg = args->argv[i];
+        if (!strcmp(arg, "--md5sig") || !strcmp(arg, "--drop-sack") ||
+                !strcmp(arg, "--wait-send")) {
+            snprintf(error, WARP_DPI_ERROR_SIZE, "%s is not supported on Windows.", arg);
+            return -1;
+        }
+    }
     if (InterlockedCompareExchange(&owner, 1, 0) != 0) {
         snprintf(error, WARP_DPI_ERROR_SIZE, "The ByeDPI engine is already running.");
         return -1;
@@ -121,21 +131,48 @@ static int wake_pair(SOCKET *writer, SOCKET *reader) {
     return 0;
 }
 
+/* Windows 8+ asynchronous resolver: cancellation is serviced while DNS is
+   pending, and its OVERLAPPED storage stays alive until completion. */
+static int resolve_target(struct engine *e, union sockaddr_u *target) {
+    ADDRINFOEXW hints = {0}, *addresses = NULL;
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    OVERLAPPED ov = {0};
+    ov.hEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
+    if (!ov.hEvent) return -1;
+    HANDLE lookup = NULL;
+    int rc = GetAddrInfoExW(L"api.cloudflareclient.com", L"443", NS_DNS, NULL,
+        &hints, &addresses, NULL, &ov, NULL, &lookup);
+    if (rc == WSA_IO_PENDING) {
+        ULONGLONG deadline = GetTickCount64() + 10000;
+        while (WaitForSingleObject(ov.hEvent, 100) == WAIT_TIMEOUT) {
+            if (InterlockedCompareExchange(&e->stopping, 0, 0) || GetTickCount64() >= deadline) {
+                GetAddrInfoExCancel(&lookup);
+                /* Windows owns the request until the completion notification. */
+                WaitForSingleObject(ov.hEvent, INFINITE);
+                break;
+            }
+        }
+        rc = GetAddrInfoExOverlappedResult(&ov);
+    }
+    int ok = rc == 0 && addresses && addresses->ai_addr &&
+        addresses->ai_addrlen <= sizeof(*target) &&
+        !InterlockedCompareExchange(&e->stopping, 0, 0);
+    if (ok) memcpy(target, addresses->ai_addr, addresses->ai_addrlen);
+    if (addresses) FreeAddrInfoExW(addresses);
+    CloseHandle(ov.hEvent);
+    return ok ? 0 : -1;
+}
+
 static unsigned __stdcall worker_main(void *opaque) {
     struct engine *e = opaque;
-    struct addrinfo hints = {0}, *addresses = NULL;
-    hints.ai_family = AF_INET; /* WARP API has IPv4; no route racing. */
-    hints.ai_socktype = SOCK_STREAM;
+    union sockaddr_u target = {0};
     if (!InterlockedCompareExchange(&e->stopping, 0, 0) &&
-        !getaddrinfo(WARP_DPI_HOST, "443", &hints, &addresses) && addresses) {
-        union sockaddr_u target = {0};
-        memcpy(&target, addresses->ai_addr, addresses->ai_addrlen);
-        freeaddrinfo(addresses);
-        if (!InterlockedCompareExchange(&e->stopping, 0, 0)) {
-            byedpi_private_loop((warp_socket_t)e->stream, (warp_socket_t)e->worker_wake, &target);
-            byedpi_windows_drain();
-            return 0;
-        }
+        !resolve_target(e, &target) &&
+        !InterlockedCompareExchange(&e->stopping, 0, 0)) {
+        byedpi_private_loop((warp_socket_t)e->stream, (warp_socket_t)e->worker_wake, &target);
+        byedpi_windows_drain();
+        return 0;
     }
     closesocket(e->stream);
     closesocket(e->worker_wake);
