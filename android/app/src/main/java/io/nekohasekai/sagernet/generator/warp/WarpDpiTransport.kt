@@ -77,11 +77,13 @@ internal class WarpDpiTransport(private val context: Context) {
         val client: OkHttpClient = WarpApi.clientBuilder()
             .proxy(Proxy.NO_PROXY)
             .socketFactory(WarpDpiSocketFactory(engine))
-            .dns(Dns { host ->
-                if (host != WarpApi.HOST) throw UnknownHostException(host)
-                // OkHttp needs a route address. Native code resolves the only
-                // permitted upstream. This address is never used for TCP.
-                listOf(InetAddress.getByAddress(host, byteArrayOf(127, 0, 0, 1)))
+            .dns(object : Dns {
+                override fun lookup(hostname: String): List<InetAddress> {
+                    if (hostname != WarpApi.HOST) throw UnknownHostException(hostname)
+                    // OkHttp needs a route address. Native code resolves the only
+                    // permitted upstream. This address is never used for TCP.
+                    return listOf(InetAddress.getByAddress(hostname, byteArrayOf(127, 0, 0, 1)))
+                }
             })
             .connectionPool(ConnectionPool(0, 1, TimeUnit.SECONDS))
             .build()
