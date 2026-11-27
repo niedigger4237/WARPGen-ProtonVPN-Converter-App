@@ -26,7 +26,7 @@ compose.desktop {
         mainClass = "com.local.protonawg.desktop.MainKt"
         nativeDistributions {
             packageName = "WarpProtonAWG"
-            packageVersion = "2.0.0"
+            packageVersion = providers.environmentVariable("DESKTOP_PACKAGE_VERSION").orElse("2.0.0").get()
             modules("java.desktop", "java.net.http", "java.naming", "java.logging", "jdk.crypto.ec")
         }
     }

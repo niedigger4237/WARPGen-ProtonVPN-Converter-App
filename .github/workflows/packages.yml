@@ -3,6 +3,9 @@ name: Build packages
 on:
   workflow_call:
     inputs:
+      platform:
+        type: string
+        default: all
       release:
         type: boolean
         default: false
@@ -26,18 +29,27 @@ jobs:
     outputs:
       name: ${{ steps.version.outputs.name }}
       semver: ${{ steps.version.outputs.semver }}
+      windows_name: ${{ steps.windows-version.outputs.name }}
+      windows_semver: ${{ steps.windows-version.outputs.semver }}
       code: ${{ steps.version.outputs.code }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - id: version
+        if: ${{ inputs.platform != 'windows' }}
         env:
           RELEASE_VERSION: ${{ inputs.version }}
-        run: python3 tools/version.py --ci-build-code ${{ inputs.release && '--release' || '' }}
+        run: python3 tools/version.py --platform android --ci-build-code ${{ inputs.release && '--release' || '' }}
+      - id: windows-version
+        if: ${{ inputs.platform != 'android' }}
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: python3 tools/version.py --platform windows ${{ inputs.release && '--release' || '' }}
 
   # Windows uses the standalone executable; Android builds JNI via CMake.
   byedpi:
+    if: ${{ inputs.platform == 'all' && !inputs.release }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -61,6 +73,7 @@ jobs:
           if-no-files-found: error
 
   windows:
+    if: ${{ inputs.platform == 'all' && !inputs.release }}
     needs: [version, byedpi]
     runs-on: windows-latest
     steps:
@@ -81,7 +94,7 @@ jobs:
       - run: python tools/build.py
       - name: Set Windows package version
         env:
-          BUILD_VERSION: ${{ needs.version.outputs.semver }}
+          BUILD_VERSION: ${{ needs.version.outputs.windows_semver }}
         run: npm pkg set "version=$env:BUILD_VERSION"
         shell: pwsh
       - run: npm run dist:win
@@ -98,6 +111,7 @@ jobs:
           if-no-files-found: error
 
   android:
+    if: ${{ inputs.platform != 'windows' }}
     env:
       VERSION_NAME: ${{ needs.version.outputs.name }}
       VERSION_CODE: ${{ needs.version.outputs.code }}
@@ -168,9 +182,10 @@ jobs:
           path: WarpProtonAWG-signed.apk
           if-no-files-found: error
   
-  # Experimental JVM desktop build, isolated from release and the existing Windows package.
+  # Portable Compose Desktop; the old Electron job remains preview-only during migration.
   desktop-preview:
-    if: ${{ github.ref == 'refs/heads/native-shared' && !inputs.release }}
+    if: ${{ inputs.platform != 'android' }}
+    needs: [version]
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
@@ -181,9 +196,10 @@ jobs:
       - name: Compile and package portable Compose Desktop
         shell: pwsh
         env:
-          DESKTOP_VERSION: '2.0.0-preview'
+          DESKTOP_PACKAGE_VERSION: ${{ needs.version.outputs.windows_semver }}
+          DESKTOP_VERSION: ${{ inputs.release && needs.version.outputs.windows_name || format('{0}-preview', needs.version.outputs.windows_name) }}
         run: .\android\gradlew.bat -p desktop test portableZip --stacktrace
-      - name: Upload desktop preview
+      - name: Upload portable Windows package
         uses: actions/upload-artifact@v4
         with:
           name: WarpProtonAWG-compose-desktop
